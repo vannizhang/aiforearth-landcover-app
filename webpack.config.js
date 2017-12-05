@@ -3,9 +3,9 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = {
     // entry: __dirname + '/src/index.js',
     entry: {
-        vendors: [
-            __dirname + '/src/lib/calcite-web.min.js'
-        ],
+        // vendors: [
+        //     __dirname + '/src/lib/calcite-web.min.js'
+        // ],
         index: __dirname + '/src/index.js'
     },
     output: {
