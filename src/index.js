@@ -1,5 +1,5 @@
 import $ from 'jquery';
-import * as calcite from 'calcite-web';
+// import * as calcite from 'calcite-web';
 
 $(document).ready(function(){
     
@@ -84,6 +84,7 @@ $(document).ready(function(){
                 this.map.graphics.add(sqAreaReferenceGraphic);                
             };
 
+            // highlight the user selected area
             this._addGraphicToAreaSelectLayer = function(graphic){
                 this.areaSelectGraphicLayer.clear();
                 this.areaSelectGraphicLayer.add(graphic)
