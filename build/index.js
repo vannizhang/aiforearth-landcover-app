@@ -505,6 +505,11 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 (0, _jquery2.default)(document).ready(function () {
 
     dojo.require("esri/arcgis/utils");
+    dojo.require("esri/geometry/Extent");
+    dojo.require("esri/symbols/SimpleLineSymbol");
+    dojo.require("esri/graphic");
+    dojo.require("esri/layers/graphics");
+
     dojo.ready(dojoOnReadyHandler);
 
     function dojoOnReadyHandler() {
@@ -533,18 +538,108 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
         function LandcoverApp() {
 
             this.map = null;
+            this.areaSelectGraphicLayer = null;
+
+            this.symbolForSquareAreaReferenceGraphic = null;
+            this.symbolForSquareAreaHighlightGraphic = null;
 
             this.startup = function () {
                 var _this = this;
 
                 esri.arcgis.utils.createMap(WEB_MAP_ID, MAP_CONTAINER_ID).then(function (response) {
-                    console.log(response);
+                    // console.log(response);
                     _this._setMap(response.map);
+                    _this._setMapEventHandlers(response.map);
+                    _this._initAreaSelectGraphicLayer(response.map);
                 });
             };
 
-            this._setMap = function (mapObject) {
-                this.map = mapObject;
+            this._setMap = function (map) {
+                this.map = map;
+            };
+
+            this._initAreaSelectGraphicLayer = function (map) {
+                this.areaSelectGraphicLayer = new esri.layers.GraphicsLayer();
+                map.addLayer(this.areaSelectGraphicLayer);
+            };
+
+            this._setMapEventHandlers = function (map) {
+                var _this2 = this;
+
+                map.on('click', function (evt) {
+                    _this2._mapOnClickHandler(evt);
+                });
+                map.on('mouse-move', function (evt) {
+                    _this2._mapOnMousemoveHandler(evt);
+                });
+            };
+
+            // show area select highlight layer on click
+            this._mapOnClickHandler = function (evt) {
+                //console.log(evt);
+                var areaSelectHighlightGraphic = this._getSquareAreaGraphic(evt);
+                this._addGraphicToAreaSelectLayer(areaSelectHighlightGraphic);
+            };
+
+            // show area select reference layer on mousemove
+            this._mapOnMousemoveHandler = function (evt) {
+                // console.log(evt);
+                var sqAreaReferenceGraphic = this._getSquareAreaGraphic(evt);
+                this.map.graphics.clear();
+                this.map.graphics.add(sqAreaReferenceGraphic);
+            };
+
+            this._addGraphicToAreaSelectLayer = function (graphic) {
+                this.areaSelectGraphicLayer.clear();
+                this.areaSelectGraphicLayer.add(graphic);
+            };
+
+            this._getSquareAreaGraphic = function (evt) {
+                // console.log(evt);
+                var sqExtent = this._getSquareExtentByMapPoint(evt.mapPoint);
+                var symbol = this._getSymbolForSquareAreaGraphicByEventType(evt.type);
+                var areaSelectGraphic = new esri.Graphic(sqExtent, symbol);
+                return areaSelectGraphic;
+            };
+
+            this._getSymbolForSquareAreaGraphicByEventType = function (eventType) {
+                var FILL_COLOR_FOR_REF_GRAPHIC = [50, 50, 50, 100];
+                var FILL_COLOR_FOR_HIGHLIGHT_GRAPHIC = [255, 0, 0, 100];
+
+                this.symbolForSquareAreaReferenceGraphic = !this.symbolForSquareAreaReferenceGraphic ? this._getSimpleFillSymbol(FILL_COLOR_FOR_REF_GRAPHIC) : this.symbolForSquareAreaReferenceGraphic;
+                this.symbolForSquareAreaHighlightGraphic = !this.symbolForSquareAreaHighlightGraphic ? this._getSimpleFillSymbol(FILL_COLOR_FOR_HIGHLIGHT_GRAPHIC) : this.symbolForSquareAreaHighlightGraphic;
+                var symbolByEventType = eventType === 'click' ? this.symbolForSquareAreaHighlightGraphic : this.symbolForSquareAreaReferenceGraphic;
+                return symbolByEventType;
+            };
+
+            this._getSquareExtentByMapPoint = function (mapPoint) {
+                var SIDE_LENGTH_HALF = 192;
+                var extent = new esri.geometry.Extent({
+                    "xmin": mapPoint.x - SIDE_LENGTH_HALF,
+                    "ymin": mapPoint.y - SIDE_LENGTH_HALF,
+                    "xmax": mapPoint.x + SIDE_LENGTH_HALF,
+                    "ymax": mapPoint.y + SIDE_LENGTH_HALF,
+                    "spatialReference": this.map.spatialReference
+                });
+                return extent;
+            };
+
+            this._getSimpleFillSymbol = function () {
+                var fillColorRGBA = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [0, 0, 0, 0];
+                var outlineColorRGBA = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [0, 0, 0, 0];
+
+                var symbol = new esri.symbol.SimpleFillSymbol({
+                    "type": "esriSFS",
+                    "style": "esriSFSSolid",
+                    "color": fillColorRGBA,
+                    "outline": {
+                        "type": "esriSLS",
+                        "style": "esriSLSSolid",
+                        "color": outlineColorRGBA,
+                        "width": 1
+                    }
+                });
+                return symbol;
             };
         }
     }
