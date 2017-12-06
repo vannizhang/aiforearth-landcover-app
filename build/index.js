@@ -57,7 +57,7 @@
 /******/ 	__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
 /******/
 /******/ 	// __webpack_public_path__
-/******/ 	__webpack_require__.p = "/assets/";
+/******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
 /******/ 	return __webpack_require__(__webpack_require__.s = 6);
@@ -498,15 +498,13 @@ var _calciteWeb = __webpack_require__(8);
 
 var calcite = _interopRequireWildcard(_calciteWeb);
 
-var _test = __webpack_require__(19);
+var _temp = __webpack_require__(19);
 
-var _test2 = _interopRequireDefault(_test);
+var _temp2 = _interopRequireDefault(_temp);
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-console.log(_test2.default);
 
 (0, _jquery2.default)(document).ready(function () {
 
@@ -525,6 +523,9 @@ console.log(_test2.default);
         // app config data
         var WEB_MAP_ID = "0a5a934c55594e209d1e6f5cde00bae2";
         var MAP_CONTAINER_ID = 'mapDiv';
+
+        var LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
+        var AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer';
 
         // app variables
         var landcoverApp = null;
@@ -546,7 +547,6 @@ console.log(_test2.default);
         function LandcoverApp() {
 
             this.map = null;
-            this.areaSelectGraphicLayer = null;
 
             this.symbolForSquareAreaReferenceGraphic = null;
             this.symbolForSquareAreaHighlightGraphic = null;
@@ -556,10 +556,11 @@ console.log(_test2.default);
 
                 esri.arcgis.utils.createMap(WEB_MAP_ID, MAP_CONTAINER_ID).then(function (response) {
                     // console.log(response);
-                    _this._setMap(response.map);
-                    _this._setMapEventHandlers(response.map);
-                    _this._initAreaSelectGraphicLayer(response.map);
-                    _this._initMapImageLayerForClassifiedImage(response.map);
+                    var map = response.map;
+                    _this._setMap(map);
+                    _this._setMapEventHandlers(map);
+                    _this._initAreaSelectGraphicLayer(map);
+                    _this._initMapImageLayerForLandcover(map);
                 });
             };
 
@@ -568,23 +569,26 @@ console.log(_test2.default);
             };
 
             this._initAreaSelectGraphicLayer = function (map) {
-                this.areaSelectGraphicLayer = new esri.layers.GraphicsLayer();
-                map.addLayer(this.areaSelectGraphicLayer);
-            };
-
-            this._initMapImageLayerForClassifiedImage = function (map) {
-                var mil = new esri.layers.MapImageLayer({
-                    'id': 'mapImageLayer'
+                var areaSelectGraphicLayer = new esri.layers.GraphicsLayer({
+                    id: AREA_SELECT_GRAPHIC_LAYER_ID
                 });
-                map.addLayer(mil);
+                map.addLayer(areaSelectGraphicLayer);
             };
 
-            this._addImageToMapImageLayerForClassifiedImage = function (imageURL, extent) {
+            this._initMapImageLayerForLandcover = function (map) {
+                var mapImageLayer = new esri.layers.MapImageLayer({
+                    'id': LANDCOVER_MAP_IMAGE_LAYER_ID
+                });
+                map.addLayer(mapImageLayer);
+            };
+
+            this._addImageToLandcoverMapImageLayer = function (imageURL, extent) {
                 var mapImage = new esri.layers.MapImage({
                     'extent': extent,
                     'href': imageURL
                 });
-                var mapImageLayer = this.map.getLayer('mapImageLayer');
+                var mapImageLayer = this.map.getLayer(LANDCOVER_MAP_IMAGE_LAYER_ID);
+                mapImageLayer.removeAllImages();
                 mapImageLayer.addImage(mapImage);
             };
 
@@ -604,6 +608,7 @@ console.log(_test2.default);
                 //console.log(evt);
                 var areaSelectHighlightGraphic = this._getSquareAreaGraphic(evt);
                 this._addGraphicToAreaSelectLayer(areaSelectHighlightGraphic);
+                this._getLandcoverImgForSelectedArea(evt.mapPoint);
             };
 
             // show area select reference layer on mousemove
@@ -614,10 +619,16 @@ console.log(_test2.default);
                 this.map.graphics.add(sqAreaReferenceGraphic);
             };
 
+            this._getLandcoverImgForSelectedArea = function (mapPoint) {
+                var sqExtent = this._getSquareExtentByMapPoint(mapPoint);
+                this._addImageToLandcoverMapImageLayer(_temp2.default, sqExtent);
+            };
+
             // highlight the user selected area
             this._addGraphicToAreaSelectLayer = function (graphic) {
-                this.areaSelectGraphicLayer.clear();
-                this.areaSelectGraphicLayer.add(graphic);
+                var areaSelectGraphicLayer = this.map.getLayer(AREA_SELECT_GRAPHIC_LAYER_ID);
+                areaSelectGraphicLayer.clear();
+                areaSelectGraphicLayer.add(graphic);
             };
 
             this._getSquareAreaGraphic = function (evt) {
@@ -630,10 +641,10 @@ console.log(_test2.default);
 
             this._getSymbolForSquareAreaGraphicByEventType = function (eventType) {
                 var FILL_COLOR_FOR_REF_GRAPHIC = [50, 50, 50, 100];
-                var FILL_COLOR_FOR_HIGHLIGHT_GRAPHIC = [255, 0, 0, 100];
+                var OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC = [255, 0, 0, 200];
 
                 this.symbolForSquareAreaReferenceGraphic = !this.symbolForSquareAreaReferenceGraphic ? this._getSimpleFillSymbol(FILL_COLOR_FOR_REF_GRAPHIC) : this.symbolForSquareAreaReferenceGraphic;
-                this.symbolForSquareAreaHighlightGraphic = !this.symbolForSquareAreaHighlightGraphic ? this._getSimpleFillSymbol(FILL_COLOR_FOR_HIGHLIGHT_GRAPHIC) : this.symbolForSquareAreaHighlightGraphic;
+                this.symbolForSquareAreaHighlightGraphic = !this.symbolForSquareAreaHighlightGraphic ? this._getSimpleFillSymbol(null, OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC) : this.symbolForSquareAreaHighlightGraphic;
                 var symbolByEventType = eventType === 'click' ? this.symbolForSquareAreaHighlightGraphic : this.symbolForSquareAreaReferenceGraphic;
                 return symbolByEventType;
             };
