@@ -4,12 +4,13 @@ module.exports = {
     // entry: __dirname + '/src/index.js',
     entry: {
         index: __dirname + '/src/index.js',
-        vendors: [
-            __dirname + '/src/lib/calcite-web.min.js'
-        ],
+        // vendor: [
+        //     __dirname + '/src/lib/calcite-web.min.js'
+        // ],
     },
     output: {
         path: __dirname + '/build',
+        publicPath: "/assets/",
         filename: '[name].js'
     },
     devServer: {
@@ -33,7 +34,11 @@ module.exports = {
                         loader: "css-loader"
                     }
                 ]
-            }
+            },
+            { 
+                test: /\.(png|jpg)$/, 
+                loader: 'url-loader' 
+            }, 
         
         ]
     },
