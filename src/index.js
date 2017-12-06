@@ -1,14 +1,23 @@
+// import JS libraries
 import $ from 'jquery';
 import * as calcite from 'calcite-web';
 
+// import css files
+import styles from'./style/calcite-web.min.css';
+import './style/main.css';
+
+// import other files
 import tempImageToTest from './assets/temp.png';
 
 $(document).ready(function(){
     
     dojo.require("esri/arcgis/utils");
+    dojo.require("esri/request");
+
     dojo.require("esri/geometry/Extent");
     dojo.require("esri/symbols/SimpleLineSymbol");
     dojo.require("esri/graphic");
+    
     dojo.require("esri/layers/graphics");
     dojo.require("esri/layers/MapImageLayer");
     dojo.require("esri/layers/MapImage");
@@ -44,15 +53,17 @@ $(document).ready(function(){
         function LandcoverApp(){
 
             this.map = null;
+            this.NAIPImageServerURL = null;
 
             this.symbolForSquareAreaReferenceGraphic = null;
             this.symbolForSquareAreaHighlightGraphic = null;
             
             this.startup = function(){
                 esri.arcgis.utils.createMap(WEB_MAP_ID, MAP_CONTAINER_ID).then(response=>{
-                    // console.log(response);
+                    console.log(response);
                     let map = response.map;
                     this._setMap(map);
+                    this._setNAIPImageServerURL(response);
                     this._setMapEventHandlers(map);
                     this._initAreaSelectGraphicLayer(map);
                     this._initMapImageLayerForLandcover(map);
@@ -61,6 +72,19 @@ $(document).ready(function(){
 
             this._setMap = function(map){
                 this.map = map;
+            };
+
+            this._setNAIPImageServerURL = function(webMapResopnse){
+                let operationalLayers = webMapResopnse.itemInfo.itemData.operationalLayers;   
+                let NAIPLayer = operationalLayers.filter(d=>{
+                    return d.title === 'NAIP';
+                })[0];
+                if(NAIPLayer){
+                    this.NAIPImageServerURL = NAIPLayer.url;
+                } else {
+                    console.log('NAIP layer not found!');
+                    return;
+                }
             };
 
             this._initAreaSelectGraphicLayer = function(map){
@@ -87,6 +111,11 @@ $(document).ready(function(){
                 mapImageLayer.addImage(mapImage);
             }
 
+            this._clearLandcoverMapImage = function(){
+                let mapImageLayer = this.map.getLayer(LANDCOVER_MAP_IMAGE_LAYER_ID);
+                mapImageLayer.removeAllImages();
+            }
+
             this._setMapEventHandlers = function(map){
                 map.on('click', evt=>{
                     this._mapOnClickHandler(evt);
@@ -100,6 +129,7 @@ $(document).ready(function(){
             this._mapOnClickHandler = function(evt){    
                 //console.log(evt);
                 let areaSelectHighlightGraphic = this._getSquareAreaGraphic(evt);
+                this._clearLandcoverMapImage();
                 this._addGraphicToAreaSelectLayer(areaSelectHighlightGraphic);
                 this._getLandcoverImgForSelectedArea(evt.mapPoint);
             };
@@ -114,7 +144,53 @@ $(document).ready(function(){
 
             this._getLandcoverImgForSelectedArea = function(mapPoint){
                 let sqExtent = this._getSquareExtentByMapPoint(mapPoint);
-                this._addImageToLandcoverMapImageLayer(tempImageToTest, sqExtent);
+                this._exportNAIPImageForSelectedArea(sqExtent).then(response=>{
+                    if(response.error){
+                        console.log("error when export NAIP image", response.error);
+                        return;
+                    } else {
+                        // console.log("Successfully export the NAIP Image ", response);
+                        this._addImageToLandcoverMapImageLayer(response.href, sqExtent);
+                    }
+                });
+                // this._addImageToLandcoverMapImageLayer(tempImageToTest, sqExtent);
+            };
+
+            this._exportNAIPImageForSelectedArea = function(inputExtent){
+                let deferred = $.Deferred();
+                let requestURL = this.NAIPImageServerURL + "/exportImage";
+                let requestParams = this._getRequestParamsToExportImageFromNAIPLayer(inputExtent);
+                let layersRequest = esri.request({
+                    url: requestURL,
+                    content: requestParams,
+                    handleAs: "json",
+                    callbackParamName: "callback"
+                }, {
+                    useProxy: false,
+                    usePost: true
+                });
+                let reuqestOnSuccessHandler = function(response){
+                    // console.log("Success: ", response);
+                    deferred.resolve(response);
+                };
+                let reuqestOnErrorHandler = function(response){
+                    // console.log("Error: ", error.message);
+                    deferred.resolve({"error": error.message});
+                }; 
+                layersRequest.then(reuqestOnSuccessHandler, reuqestOnErrorHandler);
+                return deferred.promise();
+            };
+
+            this._getRequestParamsToExportImageFromNAIPLayer = function(selectedAreaExtent){
+                const padding = 0;
+                let requestParams = {
+                    bbox: (selectedAreaExtent.xmin - padding) + "," + (selectedAreaExtent.ymin - padding) + "," + (selectedAreaExtent.xmax + padding) + "," + (selectedAreaExtent.ymax + padding),
+                    size: (384 + 2 * padding) + "," + (384 + 2 * padding),
+                    format: "png",
+                    renderingRule: '{"rasterFunction":"none"}',
+                    f: "json"
+                };
+                return requestParams;
             };
 
             // highlight the user selected area
