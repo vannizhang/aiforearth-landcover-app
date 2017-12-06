@@ -16,3 +16,19 @@ html, body {
     margin: 0;
     padding: 0; 
 }
+
+#loading-indicator-wrap {
+    height     : 100%;
+    width      : 100%;
+    z-index    : 500;
+    position: fixed; 
+    top: 0;
+    left: 0;
+    overflow   : hidden;
+    background-color: rgba(0,0,0,.2);
+}
+
+.loading-indicator {
+    margin-top: 300px;
+    z-index: 1000;
+}

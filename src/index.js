@@ -7,7 +7,7 @@ import styles from'./style/calcite-web.min.css';
 import './style/main.css';
 
 // import other files
-import tempImageToTest from './assets/temp.png';
+// import tempImageToTest from './assets/temp.png';
 
 $(document).ready(function(){
     
@@ -35,13 +35,12 @@ $(document).ready(function(){
 
         // app variables
         let landcoverApp = null;
-
-        // cache DOM nodes
-        const $body = $('body');
+        let userInterfaceShell = null;
 
         // initiate user interface utils
         const initUserinterfaceUtils = (function(){
             calcite.init();
+            userInterfaceShell = new UserInterfaceShell();
         })();
 
         // initiate app
@@ -128,6 +127,7 @@ $(document).ready(function(){
             // show area select highlight layer on click
             this._mapOnClickHandler = function(evt){    
                 //console.log(evt);
+                userInterfaceShell.toggleLoadingIndicator(true);
                 let areaSelectHighlightGraphic = this._getSquareAreaGraphic(evt);
                 this._clearLandcoverMapImage();
                 this._addGraphicToAreaSelectLayer(areaSelectHighlightGraphic);
@@ -152,6 +152,7 @@ $(document).ready(function(){
                         // console.log("Successfully export the NAIP Image ", response);
                         this._addImageToLandcoverMapImageLayer(response.href, sqExtent);
                     }
+                    userInterfaceShell.toggleLoadingIndicator(false);
                 });
                 // this._addImageToLandcoverMapImageLayer(tempImageToTest, sqExtent);
             };
@@ -243,6 +244,23 @@ $(document).ready(function(){
                     }
                 });
                 return symbol;
+            }
+        }
+
+        function UserInterfaceShell(){
+            // cache DOM nodes
+            const $body = $('body');
+            const $loadingIndicatorWrap = $('#loading-indicator-wrap');
+            const $loadingIndicator = $('.loading-indicator');
+
+            this.toggleLoadingIndicator = function(isVisible){
+                if(isVisible){
+                    $loadingIndicatorWrap.removeClass('hide');
+                    $loadingIndicator.addClass('is-active');
+                } else {
+                    $loadingIndicatorWrap.add('hide');
+                    $loadingIndicator.removeClass('is-active');
+                }
             }
         }
 
