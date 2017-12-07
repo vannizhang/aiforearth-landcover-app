@@ -35,12 +35,12 @@ $(document).ready(function(){
 
         // app variables
         let landcoverApp = null;
-        let userInterfaceShell = null;
+        let userInterfaceUtils = null;
 
         // initiate user interface utils
         const initUserinterfaceUtils = (function(){
             calcite.init();
-            userInterfaceShell = new UserInterfaceShell();
+            userInterfaceUtils = new UserInterfaceUtils();
         })();
 
         // initiate app
@@ -127,7 +127,7 @@ $(document).ready(function(){
             // show area select highlight layer on click
             this._mapOnClickHandler = function(evt){    
                 //console.log(evt);
-                userInterfaceShell.toggleLoadingIndicator(true);
+                userInterfaceUtils.toggleLoadingIndicator(true);
                 let areaSelectHighlightGraphic = this._getSquareAreaGraphic(evt);
                 this._clearLandcoverMapImage();
                 this._addGraphicToAreaSelectLayer(areaSelectHighlightGraphic);
@@ -152,7 +152,7 @@ $(document).ready(function(){
                         // console.log("Successfully export the NAIP Image ", response);
                         this._addImageToLandcoverMapImageLayer(response.href, sqExtent);
                     }
-                    userInterfaceShell.toggleLoadingIndicator(false);
+                    userInterfaceUtils.toggleLoadingIndicator(false);
                 });
                 // this._addImageToLandcoverMapImageLayer(tempImageToTest, sqExtent);
             };
@@ -247,7 +247,8 @@ $(document).ready(function(){
             }
         }
 
-        function UserInterfaceShell(){
+        function UserInterfaceUtils(){
+            
             // cache DOM nodes
             const $body = $('body');
             const $loadingIndicatorWrap = $('#loading-indicator-wrap');
