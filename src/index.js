@@ -29,6 +29,8 @@ $(document).ready(function(){
         // app config data
         const WEB_MAP_ID = "0a5a934c55594e209d1e6f5cde00bae2";
         const MAP_CONTAINER_ID = 'mapDiv';
+        const MS_AZURE_SERVER_URL = "http://vm-land-arcgis1.eastus.cloudapp.azure.com";
+        const LANDCOVER_PROCESSING_SERVICE_URL ="http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml";
 
         const LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
         const AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer'; 
@@ -45,6 +47,9 @@ $(document).ready(function(){
 
         // initiate app
         const initApp = (function(){
+            esri.config.defaults.io.alwaysUseProxy = false;
+            esri.config.defaults.io.corsEnabledServers.push(MS_AZURE_SERVER_URL);
+
             landcoverApp = new LandcoverApp();
             landcoverApp.startup();
         })();
@@ -53,13 +58,14 @@ $(document).ready(function(){
 
             this.map = null;
             this.NAIPImageServerURL = null;
+            this.shiftValues = [5, 5, 5, 5];
 
             this.symbolForSquareAreaReferenceGraphic = null;
             this.symbolForSquareAreaHighlightGraphic = null;
             
             this.startup = function(){
                 esri.arcgis.utils.createMap(WEB_MAP_ID, MAP_CONTAINER_ID).then(response=>{
-                    console.log(response);
+                    // console.log(response);
                     let map = response.map;
                     this._setMap(map);
                     this._setNAIPImageServerURL(response);
@@ -72,6 +78,20 @@ $(document).ready(function(){
             this._setMap = function(map){
                 this.map = map;
             };
+
+            this._getShiftValues = function(){
+                let shifts = this.shiftValues.map(d=>{return d});
+                return shifts;
+            };
+
+            // call this function to set and reset the shiftValues
+            this.updateShiftValues = function(index=null, value=null){
+                if(!index && !value){
+                    this.shiftValues = [5, 5, 5, 5];
+                } else {
+                    this.shiftValues[index] = value * 1.0 / 10;
+                }
+            }
 
             this._setNAIPImageServerURL = function(webMapResopnse){
                 let operationalLayers = webMapResopnse.itemInfo.itemData.operationalLayers;   
@@ -150,12 +170,55 @@ $(document).ready(function(){
                         return;
                     } else {
                         // console.log("Successfully export the NAIP Image ", response);
-                        this._addImageToLandcoverMapImageLayer(response.href, sqExtent);
+                        let paramsForLDHandlerRequest = this._getRequestParamsForLDHandlerRequest(response);
+                        this._getClassifiedImageFromLCHandlerServer(paramsForLDHandlerRequest);
+
+                        // this._addImageToLandcoverMapImageLayer(response.href, sqExtent);
                     }
                     userInterfaceUtils.toggleLoadingIndicator(false);
                 });
                 // this._addImageToLandcoverMapImageLayer(tempImageToTest, sqExtent);
             };
+
+            this._getClassifiedImageFromLCHandlerServer = function(params){
+
+                $.ajax({
+                    type: "POST",
+                    url: LANDCOVER_PROCESSING_SERVICE_URL,
+                    data: params,
+                    dataType : 'json',
+                    crossDomain: true,
+                    success: (data, status, xhr)=>{
+                        let responseJSON = xhr.responseJSON;
+                        console.log(responseJSON);
+                    }
+                });
+
+                // var xhttp = new XMLHttpRequest();
+                // xhttp.onreadystatechange = function () {
+                //     if (this.readyState == 4) {
+                //         if (this.status == 200) {
+                //             //success
+                //             var resp = JSON.parse(this.response);
+                //             console.log('success');
+
+                //         } else {
+                //             console.log(xhttp.response);
+                //         }
+                //     }
+                // };
+
+                // xhttp.open("POST", LANDCOVER_PROCESSING_SERVICE_URL);
+                // xhttp.send(params);
+            };
+
+            this._getRequestParamsForLDHandlerRequest = function(exportedNAIPImageResponse){
+                const MODE = "rgb"; // rgb or cls
+                const SHIFTS = this._getShiftValues();
+                exportedNAIPImageResponse.mode = MODE;
+                exportedNAIPImageResponse.w = SHIFTS;
+                return JSON.stringify(exportedNAIPImageResponse);
+            }
 
             this._exportNAIPImageForSelectedArea = function(inputExtent){
                 let deferred = $.Deferred();
@@ -187,7 +250,7 @@ $(document).ready(function(){
                 let requestParams = {
                     bbox: (selectedAreaExtent.xmin - padding) + "," + (selectedAreaExtent.ymin - padding) + "," + (selectedAreaExtent.xmax + padding) + "," + (selectedAreaExtent.ymax + padding),
                     size: (384 + 2 * padding) + "," + (384 + 2 * padding),
-                    format: "png",
+                    format: "tiff",
                     renderingRule: '{"rasterFunction":"none"}',
                     f: "json"
                 };

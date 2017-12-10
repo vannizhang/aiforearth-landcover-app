@@ -17,6 +17,185 @@ html, body {
     padding: 0; 
 }
 
+/*  Style for Floating Traning Panel */
+#training-menu-container {
+    position: absolute;
+    top: 25px;
+    right: 25px;
+    width: 350px;
+    min-height: 100px;
+    background-color: rgba(0,0,0,0.75);
+    color: #a9a9a9;
+    z-index: 1000;
+}
+
+#map-control-items-wrap {
+    display:flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-content: stretch;
+    align-items: stretch;
+}
+
+#training-image-div {
+    position: relative;
+    background-color: rgba(0,0,0,0.1);
+    width: 100%;
+    height: 350px;
+    text-align: center;
+    line-height: 350px;
+}
+
+#training-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 350px;
+    height: 350px;
+    /* display: none; */
+}
+
+#adjustment-sliders-container {
+    width: 100%;
+    /* height: 120px; */
+    display:flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-content: stretch;
+    align-items: stretch;
+}
+
+#adjustment-sliders-container > div {
+    flex-basis: 80px;
+    flex-grow: 1;
+    flex-shrink: 0;
+}
+
+#adjustment-sliders-legend-container {
+    height: 70px;
+    width: 100%;
+}
+
+#adjustment-sliders-legend-container > div {
+    width: 100%;
+    height: 33.33%;
+    /* background-color: #efefef; */
+}
+
+.adjustment-sliders-legend span.plus{
+    margin-left: 3px;
+}
+
+.adjustment-sliders-legend span.minus {
+    margin-left: 6px;
+}
+
+.adjustment-sliders-legend span.unchange  {
+    margin-left: 10px;
+}
+
+#adjustment-sliders-container > div.adjustment-slider-div {
+    flex-basis: 70px;
+}
+
+.adjustment-slider {
+    width: 100%;
+    height: 70px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    /* background-color: #efefef; */
+}
+
+input.customized-slider{
+    writing-mode: bt-lr; /* IE */
+    -webkit-appearance: slider-vertical;
+    width: 5px;
+    height: 100%;
+}
+
+/* .customized-slider::-webkit-slider-thumb {
+    -webkit-appearance: ;
+    appearance: none;
+    width: 5px;
+    height: 5px;
+    background: #4CAF50;
+    cursor: pointer;
+}
+
+.customized-slider::-moz-range-thumb {
+    width: 5px;
+    height: 5px;
+    background: #4CAF50;
+    cursor: pointer;
+} */
+
+.slider-label-div {
+    width: 100%;
+    text-align: center;
+}
+
+.location-search-input-wrap {
+    flex-grow: 1;
+    flex-shrink: 0;
+    flex-basis: 200px;
+}
+
+.location-search-input-wrap > input {
+    background-color: #595959;
+    border: 1px solid #6e6e6e;
+}
+
+::-webkit-input-placeholder { /* Chrome/Opera/Safari */
+    color: #959595;
+}
+::-moz-placeholder { /* Firefox 19+ */
+    color: #959595;
+}
+:-ms-input-placeholder { /* IE 10+ */
+    color: #959595;
+}
+:-moz-placeholder { /* Firefox 18- */
+    color: #959595;
+}
+
+.control-btn {
+    line-height: 38.25px;
+    width: 40px;
+    text-align: center;
+    color: #ccc;
+    background-color: #595959;
+    border: solid 1px #6e6e6e;
+}
+
+.submit-training-data-btn {
+    color: #ccc;
+    background-color: #595959;
+    border: solid 1px #6e6e6e;
+    width: 100%;
+    height: 40px;
+}
+
+.narrow-divider-line{
+    margin: .75rem 0;
+    border-top: 1px solid #6e6e6e;
+}
+
+.mouse-pointer {
+    cursor: pointer;
+}
+
+.panel-transparent {
+    background-color: rgba(0,0,0,0);
+}
+
+.font-size--4 {
+    font-size: 0.6525rem;
+}
+/* end of style for Floating Training Panel*/
+
 #loading-indicator-wrap {
     height     : 100%;
     width      : 100%;
