@@ -154,7 +154,6 @@ $(document).ready(function(){
             // show area select highlight layer on click
             this._mapOnClickHandler = function(evt){    
                 //console.log(evt);
-                userInterfaceUtils.toggleLoadingIndicator(true);
                 let areaSelectHighlightGraphic = this._getSquareAreaGraphic(evt);
                 this._clearLandcoverMapImage();
                 this._addGraphicToAreaSelectLayer(areaSelectHighlightGraphic);
@@ -170,6 +169,11 @@ $(document).ready(function(){
             };
 
             this._getLandcoverImgForSelectedArea = function(mapPoint){
+
+                userInterfaceUtils.toggleLoadingIndicator(true);
+                userInterfaceUtils.toggleTrainingImageContainer(false);
+                userInterfaceUtils.resetTrainingImageGridCells();
+
                 let sqExtent = this._getSquareExtentByMapPoint(mapPoint);
                 this._setExtentForSelectedArea(sqExtent);
                 this._exportNAIPImageForSelectedArea(sqExtent).then(response=>{
@@ -181,7 +185,6 @@ $(document).ready(function(){
                         let paramsForLDHandlerRequest = this._getRequestParamsForLDHandlerRequest(response);
                         this._getClassifiedImageFromLCHandlerServer(paramsForLDHandlerRequest)
                     }
-                    userInterfaceUtils.toggleLoadingIndicator(false);
                 });
                 // this._addImageToLandcoverMapImageLayer(tempImageToTest, sqExtent);
             };
@@ -201,8 +204,9 @@ $(document).ready(function(){
             };
 
             this._getClassifiedImageFromLCHandlerServerOnSuccessHandler = function(response){
-                console.log(response);
+                // console.log(response);
                 this._loadTiffImage(response.output_soft);
+                userInterfaceUtils.toggleLoadingIndicator(false);
             };
 
             this._loadTiffImage = function(imageSrcPath){
@@ -321,12 +325,13 @@ $(document).ready(function(){
         }
 
         function UserInterfaceUtils(){
+
+            const NUM_OF_GRID_CELLS = 16;
             
             // cache DOM nodes
             const $body = $('body');
             const $loadingIndicatorWrap = $('#loading-indicator-wrap');
             const $loadingIndicator = $('.loading-indicator');
-
             const $trainingImage = $('#training-image');
             const $trainingImageSquareDiv = $('#training-image-square-div');
             const $trainingImageGridDiv = $('#training-image-grid');
@@ -334,7 +339,7 @@ $(document).ready(function(){
             this.canvasForTiffImgSideLength = 0;
 
             this.startup = function(){
-                this._populateTrainingImageGridCells();
+                this._populateTrainingImageGridCells(NUM_OF_GRID_CELLS);
                 this.initEventHandlers();
             };
 
@@ -343,7 +348,11 @@ $(document).ready(function(){
                 $body.on('click', '.grid-cell', trainingImageGridCellOnClickHandler);
 
                 function trainingImageGridCellOnClickHandler(evt){
-                    self._getTrainingImageTile().then(imageTileDataURL=>{
+                    let targetGridCell = $(this);
+                    let targetCellIndex = targetGridCell.attr('data-grid-index');
+                    targetGridCell.addClass('active');
+                    targetGridCell.siblings().removeClass('active');
+                    self._getTrainingImageTile(targetCellIndex).then(imageTileDataURL=>{
                         // console.log(imageTileDataURL);
                         landcoverApp.addImageToLandcoverMapImageLayer(imageTileDataURL);
                     });
@@ -352,41 +361,79 @@ $(document).ready(function(){
 
             this.populateTrainingImage = function(imageData){
                 $trainingImage.attr('src', imageData);
-                $trainingImage.removeClass('hide');
+                this.toggleTrainingImageContainer(true);
             };
 
             this.getCanvasForTiffImgSideLength = function(canvas){
                 this.canvasForTiffImgSideLength = $(canvas).attr('width');
-            }
+            };
 
-            this._getTrainingImageTile = function(){
+            this._getGridCellPosition = function(cellIndex){
+                cellIndex = +cellIndex;
+                let numOfItemsPerRow = Math.sqrt(NUM_OF_GRID_CELLS);
+                let numOfItemsPerColumn = numOfItemsPerRow;
+                let gridCellRowIndex = Math.floor(cellIndex /  numOfItemsPerRow);
+                let gridCellColIndex = cellIndex % numOfItemsPerColumn;
+                return [gridCellColIndex, gridCellRowIndex];
+            };
+
+            this._getTrainingImageTile = function(cellIndex){
                 let deferred = $.Deferred();
-                let trainingImageSideLength = $trainingImage.width();
-                let tileSidelength = trainingImageSideLength / 4;
+
+                let gridCellPosition = this._getGridCellPosition(cellIndex);
+                let gridColIndex = gridCellPosition[0];
+                let gridRowIndex = gridCellPosition[1];
+                let tileSidelength = this.canvasForTiffImgSideLength / Math.sqrt(NUM_OF_GRID_CELLS);
                 let trainingImageSrc = $trainingImage.attr('src');
+                
                 let canvas = document.createElement('canvas');
-                canvas.id = "tileCanvas";
                 canvas.width = tileSidelength;
                 canvas.height = tileSidelength;
-                let ctx = canvas.getContext("2d");
 
+                let ctx = canvas.getContext("2d");
                 var img = new Image;
                 img.onload = ()=>{
-                    ctx.drawImage(img, 0, 0, this.canvasForTiffImgSideLength/4, this.canvasForTiffImgSideLength/4, 0, 0, tileSidelength, tileSidelength);
-                    let dataURL = canvas.toDataURL();
+                    // The X and Y coordinate of the top left corner of the sub-rectangle of the source image to draw into the destination context.
+                    let sourceX = gridColIndex * tileSidelength;
+                    let sourceY = gridRowIndex * tileSidelength;
+                    // The width and height of the sub-rectangle of the source image to draw into the destination context
+                    let sWidth = tileSidelength; 
+                    let sHeight = tileSidelength;
+                    // The X and Y coordinate in the destination canvas at which to place the top-left corner of the source image
+                    let destinationX = 0;
+                    let destinationY = 0;
+                    // The width and height to draw the image in the destination canvas
+                    let destinationCanvasWidth = tileSidelength;
+                    let destinationCanvasHeight = tileSidelength;
+                    let dataURL = null;
+
+                    ctx.drawImage(img, sourceX, sourceY, sWidth, sHeight, destinationX, destinationY, destinationCanvasWidth, destinationCanvasHeight);
+                    dataURL = canvas.toDataURL();
                     deferred.resolve(dataURL);
-                    document.getElementById("tileCanvas").remove();
                 };
                 img.src = trainingImageSrc;
                 return deferred.promise();
             };
 
-            this._populateTrainingImageGridCells = function(numOfGrids=16){
+            this._populateTrainingImageGridCells = function(numOfCells){
                 let gridCellStrs = [];
-                for(var i = 0; i < numOfGrids; i++){
-                    gridCellStrs.push(`<div class="grid-cell" data-grid-index=${i}></div>`);
+                let gridCellWidthByPct = 1 / Math.sqrt(NUM_OF_GRID_CELLS) * 100;
+                for(var i = 0; i < numOfCells; i++){
+                    gridCellStrs.push(`<div class="grid-cell" data-grid-index=${i} style='width:${gridCellWidthByPct}%;'></div>`);
                 }
                 $trainingImageGridDiv.append(gridCellStrs.join(''));
+            };
+
+            this.resetTrainingImageGridCells = function(){
+                $trainingImageGridDiv.find('.grid-cell').removeClass('active');
+            };
+
+            this.toggleTrainingImageContainer = function(isVisible){
+                if(isVisible){
+                    $trainingImageSquareDiv.removeClass('hide');
+                } else {
+                    $trainingImageSquareDiv.addClass('hide');
+                }
             };
 
             this.toggleLoadingIndicator = function(isVisible){

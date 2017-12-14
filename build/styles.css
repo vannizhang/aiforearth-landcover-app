@@ -64,21 +64,30 @@
     right: 0;
 }
 
+#training-image {
+    width: 350px;
+    height: 350px;
+}
+
 #training-image-grid {
     display: flex;
     flex-wrap: wrap;
 }
 
 #training-image-grid > div.grid-cell {
-    width: 25%;
+    /* width: 25%; */
     background-color: rgba(0,0,0,0.3);
     z-index: 1000;
-    margin: -.5px;
-    border: .5px solid rgba(120,120,120,0.2);
+    margin: -1px;
+    border: 1px solid rgba(120,120,120,0.2);
     cursor: pointer;
 }
 
 #training-image-grid > div.grid-cell:hover {
+    background-color: rgba(0,0,0,0);
+}
+
+#training-image-grid > div.grid-cell.active {
     background-color: rgba(0,0,0,0);
 }
 
@@ -201,4 +210,20 @@ input.customized-slider{
 
 .font-size--4 {
     font-size: 0.6525rem;
+}
+
+#loading-indicator-wrap {
+    height     : 100%;
+    width      : 100%;
+    z-index    : 500;
+    position: fixed; 
+    top: 0;
+    left: 0;
+    overflow   : hidden;
+    background-color: rgba(0,0,0,.2);
+}
+
+.loading-indicator {
+    margin-top: 300px;
+    z-index: 1000;
 }
