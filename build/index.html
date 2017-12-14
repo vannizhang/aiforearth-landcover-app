@@ -18,95 +18,101 @@
     <div id='mapDiv'>
     </div>
 
-    <div id='training-menu-container' class='panel panel-no-border'>    
-      <div id='map-control-items-wrap' class='panel panel-no-padding panel-no-border panel-transparent'>
-          <div class='location-search-input-wrap'>
-              <input class="input-group-input" type="text" placeholder="Location...">
-          </div>
-          <div class='margin-left-half right control-btn mouse-pointer'>
-              <span class="fa fa-minus" aria-hidden="true"></span>
-          </div>
-          <div class='right control-btn margin-left-quarter mouse-pointer'>
-              <span class="fa fa-plus" aria-hidden="true"></span>
-          </div>
-          <div class='margin-left-half right control-btn mouse-pointer'>
-              <span class="fa fa-random" aria-hidden="true"></span>
-          </div>
-      </div>
+    <div id='training-menu-container' class='panel panel-no-border'>
+        
+        <div id='map-control-items-wrap' class='panel panel-no-padding panel-no-border panel-transparent'>
+            <div class='location-search-input-wrap'>
+                <input class="input-group-input" type="text" placeholder="Location...">
+            </div>
+            <div class='margin-left-half right control-btn mouse-pointer'>
+                <span class="fa fa-minus" aria-hidden="true"></span>
+            </div>
+            <div class='right control-btn margin-left-quarter mouse-pointer'>
+                <span class="fa fa-plus" aria-hidden="true"></span>
+            </div>
+            <div class='margin-left-half right control-btn mouse-pointer'>
+                <span class="fa fa-random" aria-hidden="true"></span>
+            </div>
+        </div>
 
-      <hr class='narrow-divider-line'/>
-      
-      <div id='training-image-wrap' class='panel panel-no-padding panel-no-border panel-transparent'>
-          <div class='training-image-control-items'>
-              <div class='inline-block'>
-                  <span class='font-size--3'>Choose a best fit</span>
-              </div>
-              <div class='inline-block right hide'>
-                  <span>slider</span>
-              </div>
-          </div>
-          <div id='training-image-div'>
-              <img id="training-image" src="" class='hide'>
-              <span>Choose a training area</span>
-          </div>
-      </div>
+        <hr class='narrow-divider-line'/>
+        
+        <div id='training-image-wrap' class='panel panel-no-padding panel-no-border panel-transparent'>
+            <div class='training-image-control-items'>
+                <div class='inline-block'>
+                    <span class='font-size--3'>Choose a best fit</span>
+                </div>
+                <div class='inline-block right hide'>
+                    <span>slider</span>
+                </div>
+            </div>
 
-      <hr class='narrow-divider-line'/>
+            <div id='training-image-container'>
+                <div id='training-image-square-div'>
+                    <img id="training-image" src="" class='hide'>
+                    <div id='training-image-grid'></div>
+                </div>
+                <span>Choose a training area</span>
+            </div>
+        </div>
 
-      <div id='adjustment-controls-wrap' class='panel panel-no-padding panel-no-border panel-transparent'>
-          <div class='font-size--3'>
-              <span>Recommend Tweaks</span>
-          </div>
-          <div id='adjustment-sliders-container' class='leader-quarter'>
-              <div id='adjustment-sliders-legend-container' class='font-size--4'>
-                  <div class='adjustment-sliders-legend'><span>+</span><span class='plus'>Strengthen</span></div>
-                  <div class='adjustment-sliders-legend'><span class='unchange'>No change</span></div>
-                  <div class='adjustment-sliders-legend'><span>-</span><span class='minus'>Suppress</span></div>
-              </div>
+        <hr class='narrow-divider-line'/>
 
-              <div class='adjustment-slider-div'>
-                  <div class='adjustment-slider'>
-                      <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5"/>
-                  </div>
-                  <div class='slider-label-div'>
-                      <div></div>
-                      <div><span class='font-size--3'>Field</span></div>
-                  </div>
-              </div>
+        <div id='adjustment-controls-wrap' class='panel panel-no-padding panel-no-border panel-transparent'>
+            <div class='font-size--3'>
+                <span>Recommend Tweaks</span>
+            </div>
+            <div id='adjustment-sliders-container' class='leader-quarter'>
+                <div id='adjustment-sliders-legend-container' class='font-size--4'>
+                    <div class='adjustment-sliders-legend'><span>+</span><span class='plus'>Strengthen</span></div>
+                    <div class='adjustment-sliders-legend'><span class='unchange'>No change</span></div>
+                    <div class='adjustment-sliders-legend'><span>-</span><span class='minus'>Suppress</span></div>
+                </div>
 
-              <div class='adjustment-slider-div'>
-                  <div class='adjustment-slider'>
-                      <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5"/>
-                  </div>
-                  <div class='slider-label-div'>
-                      <div></div>
-                      <div><span class='font-size--3'>Forest</span></div>
-                  </div>
-              </div>
-              <div class='adjustment-slider-div'>
-                  <div class='adjustment-slider'>
-                      <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5"/>
-                  </div>
-                  <div class='slider-label-div'>
-                      <div></div>
-                      <div><span class='font-size--3'>Water</span></div>
-                  </div>
-              </div>
-              <div class='adjustment-slider-div'>
-                  <div class='adjustment-slider'>
-                      <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5"/>
-                  </div>
-                  <div class='slider-label-div'>
-                      <div></div>
-                      <div><span class='font-size--3'>Built</span></div>
-                  </div>
-              </div>
-              <!-- <div></div> -->
-          </div>
-          <button class="btn submit-training-data-btn mouse-pointer leader-half"> <span class='font-size--1'>Teach the machine </span></button>
-      </div>
+                <div class='adjustment-slider-div'>
+                    <div class='adjustment-slider'>
+                        <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5"/>
+                    </div>
+                    <div class='slider-label-div'>
+                        <div></div>
+                        <div><span class='font-size--3'>Field</span></div>
+                    </div>
+                </div>
 
-  </div>
+                <div class='adjustment-slider-div'>
+                    <div class='adjustment-slider'>
+                        <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5"/>
+                    </div>
+                    <div class='slider-label-div'>
+                        <div></div>
+                        <div><span class='font-size--3'>Forest</span></div>
+                    </div>
+                </div>
+                <div class='adjustment-slider-div'>
+                    <div class='adjustment-slider'>
+                        <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5"/>
+                    </div>
+                    <div class='slider-label-div'>
+                        <div></div>
+                        <div><span class='font-size--3'>Water</span></div>
+                    </div>
+                </div>
+                <div class='adjustment-slider-div'>
+                    <div class='adjustment-slider'>
+                        <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5"/>
+                    </div>
+                    <div class='slider-label-div'>
+                        <div></div>
+                        <div><span class='font-size--3'>Built</span></div>
+                    </div>
+                </div>
+                <!-- <div></div> -->
+            </div>
+            <button class="btn submit-training-data-btn mouse-pointer leader-half"> <span class='font-size--1'>Teach the machine </span></button>
+        </div>
+    </div>
+
+    <script src="http://seikichi.github.io/tiff.js/tiff.min.js"></script>
     <script src="https://js.arcgis.com/3.22/"></script>
   <script type="text/javascript" src="index.js"></script></body>
 </html>

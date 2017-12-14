@@ -7,7 +7,7 @@ import styles from'./style/calcite-web.min.css';
 import './style/main.css';
 
 // import other files
-// import tempImageToTest from './assets/temp.png';
+// import testTiff from './assets/test.tif';
 
 $(document).ready(function(){
     
@@ -43,12 +43,13 @@ $(document).ready(function(){
         const initUserinterfaceUtils = (function(){
             calcite.init();
             userInterfaceUtils = new UserInterfaceUtils();
+            userInterfaceUtils.startup();
         })();
 
         // initiate app
         const initApp = (function(){
-            esri.config.defaults.io.alwaysUseProxy = false;
-            esri.config.defaults.io.corsEnabledServers.push(MS_AZURE_SERVER_URL);
+            // esri.config.defaults.io.alwaysUseProxy = false;
+            // esri.config.defaults.io.corsEnabledServers.push(MS_AZURE_SERVER_URL);
 
             landcoverApp = new LandcoverApp();
             landcoverApp.startup();
@@ -59,6 +60,7 @@ $(document).ready(function(){
             this.map = null;
             this.NAIPImageServerURL = null;
             this.shiftValues = [5, 5, 5, 5];
+            this.extentForSelectedArea = null;
 
             this.symbolForSquareAreaReferenceGraphic = null;
             this.symbolForSquareAreaHighlightGraphic = null;
@@ -78,6 +80,10 @@ $(document).ready(function(){
             this._setMap = function(map){
                 this.map = map;
             };
+
+            this._setExtentForSelectedArea = function(extent){
+                this.extentForSelectedArea = extent;
+            }
 
             this._getShiftValues = function(){
                 let shifts = this.shiftValues.map(d=>{return d});
@@ -120,7 +126,8 @@ $(document).ready(function(){
                 map.addLayer(mapImageLayer);
             };
 
-            this._addImageToLandcoverMapImageLayer = function(imageURL, extent){
+            this.addImageToLandcoverMapImageLayer = function(imageURL){
+                let extent = this.extentForSelectedArea;
                 let mapImage = new esri.layers.MapImage({
                     'extent': extent,
                     'href': imageURL
@@ -164,6 +171,7 @@ $(document).ready(function(){
 
             this._getLandcoverImgForSelectedArea = function(mapPoint){
                 let sqExtent = this._getSquareExtentByMapPoint(mapPoint);
+                this._setExtentForSelectedArea(sqExtent);
                 this._exportNAIPImageForSelectedArea(sqExtent).then(response=>{
                     if(response.error){
                         console.log("error when export NAIP image", response.error);
@@ -171,9 +179,7 @@ $(document).ready(function(){
                     } else {
                         // console.log("Successfully export the NAIP Image ", response);
                         let paramsForLDHandlerRequest = this._getRequestParamsForLDHandlerRequest(response);
-                        this._getClassifiedImageFromLCHandlerServer(paramsForLDHandlerRequest);
-
-                        // this._addImageToLandcoverMapImageLayer(response.href, sqExtent);
+                        this._getClassifiedImageFromLCHandlerServer(paramsForLDHandlerRequest)
                     }
                     userInterfaceUtils.toggleLoadingIndicator(false);
                 });
@@ -181,7 +187,6 @@ $(document).ready(function(){
             };
 
             this._getClassifiedImageFromLCHandlerServer = function(params){
-
                 $.ajax({
                     type: "POST",
                     url: LANDCOVER_PROCESSING_SERVICE_URL,
@@ -190,27 +195,32 @@ $(document).ready(function(){
                     crossDomain: true,
                     success: (data, status, xhr)=>{
                         let responseJSON = xhr.responseJSON;
-                        console.log(responseJSON);
+                        this._getClassifiedImageFromLCHandlerServerOnSuccessHandler(responseJSON);
                     }
                 });
-
-                // var xhttp = new XMLHttpRequest();
-                // xhttp.onreadystatechange = function () {
-                //     if (this.readyState == 4) {
-                //         if (this.status == 200) {
-                //             //success
-                //             var resp = JSON.parse(this.response);
-                //             console.log('success');
-
-                //         } else {
-                //             console.log(xhttp.response);
-                //         }
-                //     }
-                // };
-
-                // xhttp.open("POST", LANDCOVER_PROCESSING_SERVICE_URL);
-                // xhttp.send(params);
             };
+
+            this._getClassifiedImageFromLCHandlerServerOnSuccessHandler = function(response){
+                console.log(response);
+                this._loadTiffImage(response.output_soft);
+            };
+
+            this._loadTiffImage = function(imageSrcPath){
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', imageSrcPath);
+                xhr.responseType = 'arraybuffer';
+                xhr.onload = function (e) {
+                    var buffer = xhr.response;
+                    var tiff = new Tiff({buffer: buffer});
+                    var canvasForTiffImg = tiff.toCanvas();
+                    if (canvasForTiffImg) {
+                        let imageData = canvasForTiffImg.toDataURL();
+                        userInterfaceUtils.populateTrainingImage(imageData);
+                        userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
+                    }
+                };
+                xhr.send();
+            }
 
             this._getRequestParamsForLDHandlerRequest = function(exportedNAIPImageResponse){
                 const MODE = "rgb"; // rgb or cls
@@ -317,6 +327,68 @@ $(document).ready(function(){
             const $loadingIndicatorWrap = $('#loading-indicator-wrap');
             const $loadingIndicator = $('.loading-indicator');
 
+            const $trainingImage = $('#training-image');
+            const $trainingImageSquareDiv = $('#training-image-square-div');
+            const $trainingImageGridDiv = $('#training-image-grid');
+
+            this.canvasForTiffImgSideLength = 0;
+
+            this.startup = function(){
+                this._populateTrainingImageGridCells();
+                this.initEventHandlers();
+            };
+
+            this.initEventHandlers = function(){
+                let self = this;
+                $body.on('click', '.grid-cell', trainingImageGridCellOnClickHandler);
+
+                function trainingImageGridCellOnClickHandler(evt){
+                    self._getTrainingImageTile().then(imageTileDataURL=>{
+                        // console.log(imageTileDataURL);
+                        landcoverApp.addImageToLandcoverMapImageLayer(imageTileDataURL);
+                    });
+                }
+            };
+
+            this.populateTrainingImage = function(imageData){
+                $trainingImage.attr('src', imageData);
+                $trainingImage.removeClass('hide');
+            };
+
+            this.getCanvasForTiffImgSideLength = function(canvas){
+                this.canvasForTiffImgSideLength = $(canvas).attr('width');
+            }
+
+            this._getTrainingImageTile = function(){
+                let deferred = $.Deferred();
+                let trainingImageSideLength = $trainingImage.width();
+                let tileSidelength = trainingImageSideLength / 4;
+                let trainingImageSrc = $trainingImage.attr('src');
+                let canvas = document.createElement('canvas');
+                canvas.id = "tileCanvas";
+                canvas.width = tileSidelength;
+                canvas.height = tileSidelength;
+                let ctx = canvas.getContext("2d");
+
+                var img = new Image;
+                img.onload = ()=>{
+                    ctx.drawImage(img, 0, 0, this.canvasForTiffImgSideLength/4, this.canvasForTiffImgSideLength/4, 0, 0, tileSidelength, tileSidelength);
+                    let dataURL = canvas.toDataURL();
+                    deferred.resolve(dataURL);
+                    document.getElementById("tileCanvas").remove();
+                };
+                img.src = trainingImageSrc;
+                return deferred.promise();
+            };
+
+            this._populateTrainingImageGridCells = function(numOfGrids=16){
+                let gridCellStrs = [];
+                for(var i = 0; i < numOfGrids; i++){
+                    gridCellStrs.push(`<div class="grid-cell" data-grid-index=${i}></div>`);
+                }
+                $trainingImageGridDiv.append(gridCellStrs.join(''));
+            };
+
             this.toggleLoadingIndicator = function(isVisible){
                 if(isVisible){
                     $loadingIndicatorWrap.removeClass('hide');
@@ -325,7 +397,9 @@ $(document).ready(function(){
                     $loadingIndicatorWrap.add('hide');
                     $loadingIndicator.removeClass('is-active');
                 }
-            }
+            };
+
+
         }
 
 

@@ -7,7 +7,7 @@ module.exports = {
     entry: {
         index: __dirname + '/src/index.js',
         // vendor: [
-        //     __dirname + '/src/lib/calcite-web.min.js'
+        //     __dirname + '/src/lib/tiff.min.js'
         // ],
     },
     output: {
