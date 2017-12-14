@@ -179,6 +179,7 @@ $(document).ready(function(){
                 this._exportNAIPImageForSelectedArea(sqExtent).then(response=>{
                     if(response.error){
                         console.log("error when export NAIP image", response.error);
+                        userInterfaceUtils.toggleLoadingIndicator(false);
                         return;
                     } else {
                         // console.log("Successfully export the NAIP Image ", response);
@@ -196,10 +197,14 @@ $(document).ready(function(){
                     data: params,
                     dataType : 'json',
                     crossDomain: true,
-                    success: (data, status, xhr)=>{
-                        let responseJSON = xhr.responseJSON;
-                        this._getClassifiedImageFromLCHandlerServerOnSuccessHandler(responseJSON);
-                    }
+                    context: this
+                })
+                .done(function( response ) {
+                    this._getClassifiedImageFromLCHandlerServerOnSuccessHandler(response);
+                })
+                .fail(function() {
+                    console.log( "error when retrieve landcover classification image from AI server" );
+                    userInterfaceUtils.toggleLoadingIndicator(false);
                 });
             };
 
