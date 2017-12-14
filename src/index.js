@@ -183,14 +183,14 @@ $(document).ready(function(){
                         return;
                     } else {
                         // console.log("Successfully export the NAIP Image ", response);
-                        let paramsForLDHandlerRequest = this._getRequestParamsForLDHandlerRequest(response);
-                        this._getClassifiedImageFromLCHandlerServer(paramsForLDHandlerRequest)
+                        let params = this._getParamsToRequestAIServer(response);
+                        this._requestAIServer(params);
                     }
                 });
                 // this._addImageToLandcoverMapImageLayer(tempImageToTest, sqExtent);
             };
 
-            this._getClassifiedImageFromLCHandlerServer = function(params){
+            this._requestAIServer = function(params){
                 $.ajax({
                     type: "POST",
                     url: LANDCOVER_PROCESSING_SERVICE_URL,
@@ -200,17 +200,21 @@ $(document).ready(function(){
                     context: this
                 })
                 .done(function( response ) {
-                    this._getClassifiedImageFromLCHandlerServerOnSuccessHandler(response);
+                    this._requestAIServerOnSuccessHandler(response);
                 })
                 .fail(function() {
-                    console.log( "error when retrieve landcover classification image from AI server" );
-                    userInterfaceUtils.toggleLoadingIndicator(false);
+                    this._requestAIServerOnErrorHandler();
                 });
             };
 
-            this._getClassifiedImageFromLCHandlerServerOnSuccessHandler = function(response){
+            this._requestAIServerOnSuccessHandler = function(response){
                 // console.log(response);
                 this._loadTiffImage(response.output_soft);
+                userInterfaceUtils.toggleLoadingIndicator(false);
+            };
+
+            this._requestAIServerOnErrorHandler = function(response){
+                console.error( "error when retrieve landcover classification image from AI server" );
                 userInterfaceUtils.toggleLoadingIndicator(false);
             };
 
@@ -231,7 +235,7 @@ $(document).ready(function(){
                 xhr.send();
             }
 
-            this._getRequestParamsForLDHandlerRequest = function(exportedNAIPImageResponse){
+            this._getParamsToRequestAIServer = function(exportedNAIPImageResponse){
                 const MODE = "rgb"; // rgb or cls
                 const SHIFTS = this._getShiftValues();
                 exportedNAIPImageResponse.mode = MODE;
