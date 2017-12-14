@@ -5,6 +5,7 @@ import * as calcite from 'calcite-web';
 // import css files
 import styles from'./style/calcite-web.min.css';
 import './style/main.css';
+import { setTimeout } from 'timers';
 
 // import other files
 // import testTiff from './assets/test.tif';
@@ -190,6 +191,14 @@ $(document).ready(function(){
                 // this._addImageToLandcoverMapImageLayer(tempImageToTest, sqExtent);
             };
 
+            this._getParamsToRequestAIServer = function(exportedNAIPImageResponse){
+                const MODE = "rgb"; // rgb or cls
+                const SHIFTS = this._getShiftValues();
+                exportedNAIPImageResponse.mode = MODE;
+                exportedNAIPImageResponse.w = SHIFTS;
+                return JSON.stringify(exportedNAIPImageResponse);
+            };
+
             this._requestAIServer = function(params){
                 $.ajax({
                     type: "POST",
@@ -210,12 +219,12 @@ $(document).ready(function(){
             this._requestAIServerOnSuccessHandler = function(response){
                 // console.log(response);
                 this._loadTiffImage(response.output_soft);
-                userInterfaceUtils.toggleLoadingIndicator(false);
             };
 
             this._requestAIServerOnErrorHandler = function(response){
                 console.error( "error when retrieve landcover classification image from AI server" );
                 userInterfaceUtils.toggleLoadingIndicator(false);
+                userInterfaceUtils.showRequestFailedAlert();
             };
 
             this._loadTiffImage = function(imageSrcPath){
@@ -230,23 +239,16 @@ $(document).ready(function(){
                         let imageData = canvasForTiffImg.toDataURL();
                         userInterfaceUtils.populateTrainingImage(imageData);
                         userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
+                        userInterfaceUtils.toggleLoadingIndicator(false);
                     }
                 };
                 xhr.send();
             }
 
-            this._getParamsToRequestAIServer = function(exportedNAIPImageResponse){
-                const MODE = "rgb"; // rgb or cls
-                const SHIFTS = this._getShiftValues();
-                exportedNAIPImageResponse.mode = MODE;
-                exportedNAIPImageResponse.w = SHIFTS;
-                return JSON.stringify(exportedNAIPImageResponse);
-            }
-
             this._exportNAIPImageForSelectedArea = function(inputExtent){
                 let deferred = $.Deferred();
                 let requestURL = this.NAIPImageServerURL + "/exportImage";
-                let requestParams = this._getRequestParamsToExportImageFromNAIPLayer(inputExtent);
+                let requestParams = this._getParamsToExportImageFromNAIPLayer(inputExtent);
                 let layersRequest = esri.request({
                     url: requestURL,
                     content: requestParams,
@@ -268,7 +270,7 @@ $(document).ready(function(){
                 return deferred.promise();
             };
 
-            this._getRequestParamsToExportImageFromNAIPLayer = function(selectedAreaExtent){
+            this._getParamsToExportImageFromNAIPLayer = function(selectedAreaExtent){
                 const padding = 0;
                 let requestParams = {
                     bbox: (selectedAreaExtent.xmin - padding) + "," + (selectedAreaExtent.ymin - padding) + "," + (selectedAreaExtent.xmax + padding) + "," + (selectedAreaExtent.ymax + padding),
@@ -339,11 +341,12 @@ $(document).ready(function(){
             
             // cache DOM nodes
             const $body = $('body');
-            const $loadingIndicatorWrap = $('#loading-indicator-wrap');
-            const $loadingIndicator = $('.loading-indicator');
+            const $loadingIndicator = $('#loader-for-landcover-image-request');
             const $trainingImage = $('#training-image');
             const $trainingImageSquareDiv = $('#training-image-square-div');
             const $trainingImageGridDiv = $('#training-image-grid');
+            const $trainingImageMsg = $('#training-image-message');
+            const $requestFailedAlert = $('#ai-request-failed-alert');
 
             this.canvasForTiffImgSideLength = 0;
 
@@ -447,12 +450,21 @@ $(document).ready(function(){
 
             this.toggleLoadingIndicator = function(isVisible){
                 if(isVisible){
-                    $loadingIndicatorWrap.removeClass('hide');
+                    $loadingIndicator.removeClass('hide');
                     $loadingIndicator.addClass('is-active');
+                    $trainingImageMsg.addClass('hide');
                 } else {
-                    $loadingIndicatorWrap.add('hide');
+                    $loadingIndicator.addClass('hide');
                     $loadingIndicator.removeClass('is-active');
+                    $trainingImageMsg.removeClass('hide');
                 }
+            };
+
+            this.showRequestFailedAlert = function(){
+                $requestFailedAlert.removeClass('hide');
+                setTimeout(function(){
+                    $requestFailedAlert.addClass('hide');
+                }, 2500);
             };
 
 

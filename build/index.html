@@ -9,13 +9,10 @@
     <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"> 
   <link href="styles.css" rel="stylesheet"></head>
   <body>
-    <div id='loading-indicator-wrap hide'>
-        <div class="loading-indicator loader">
-            <div class="loader-bars"></div>
-            <div class="loader-text text-white font-size-1">Processing...</div>
-        </div>
-    </div>
-    <div id='mapDiv'>
+    <div id='mapDiv'></div>
+
+    <div id='ai-request-failed-alert' class="alert alert-red is-active hide">
+        Failed to get Land Cover Classification Image
     </div>
 
     <div id='training-menu-container' class='panel panel-no-border'>
@@ -52,7 +49,11 @@
                     <img id="training-image" src="">
                     <div id='training-image-grid'></div>
                 </div>
-                <span>Choose a training area</span>
+                <div id='loader-for-landcover-image-request' class="loader is-active padding-leader-4 hide">
+                    <div class="loader-bars"></div>
+                    <div class="loader-text">Processing...</div>
+                </div>
+                <span id='training-image-message'>Choose a training area</span>
             </div>
         </div>
 

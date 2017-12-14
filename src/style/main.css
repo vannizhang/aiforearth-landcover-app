@@ -17,6 +17,12 @@ html, body {
     padding: 0; 
 }
 
+#ai-request-failed-alert {
+    position: absolute;
+    bottom: 50px;
+    right: 25px;
+}
+
 /*  Style for Floating Traning Panel */
 #training-menu-container {
     position: absolute;
@@ -44,6 +50,14 @@ html, body {
     height: 350px;
     text-align: center;
     line-height: 350px;
+}
+
+#loader-for-landcover-image-request {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 350px;
+    line-height: 10px;
 }
 
 #training-image-square-div {
@@ -210,20 +224,4 @@ input.customized-slider{
 
 .font-size--4 {
     font-size: 0.6525rem;
-}
-
-#loading-indicator-wrap {
-    height     : 100%;
-    width      : 100%;
-    z-index    : 500;
-    position: fixed; 
-    top: 0;
-    left: 0;
-    overflow   : hidden;
-    background-color: rgba(0,0,0,.2);
-}
-
-.loading-indicator {
-    margin-top: 300px;
-    z-index: 1000;
 }
