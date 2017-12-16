@@ -60,7 +60,7 @@ $(document).ready(function(){
 
             this.map = null;
             this.NAIPImageServerURL = null;
-            this.shiftValues = [5, 5, 5, 5];
+            this.shiftValues = [5, 5, 5, 5]; // [water, forest, field, build], value range 0-10 with 1 decimal place
             this.extentForSelectedArea = null;
 
             this.symbolForSquareAreaReferenceGraphic = null;
@@ -179,8 +179,8 @@ $(document).ready(function(){
                 this._setExtentForSelectedArea(sqExtent);
                 this._exportNAIPImageForSelectedArea(sqExtent).then(response=>{
                     if(response.error){
-                        console.log("error when export NAIP image", response.error);
-                        userInterfaceUtils.toggleLoadingIndicator(false);
+                        console.error("error when export NAIP image", response.error);
+                        userInterfaceUtils.showRequestFailedAlert();
                         return;
                     } else {
                         // console.log("Successfully export the NAIP Image ", response);
@@ -221,9 +221,8 @@ $(document).ready(function(){
                 this._loadTiffImage(response.output_soft);
             };
 
-            this._requestAIServerOnErrorHandler = function(response){
+            this._requestAIServerOnErrorHandler = function(error){
                 console.error( "error when retrieve landcover classification image from AI server" );
-                userInterfaceUtils.toggleLoadingIndicator(false);
                 userInterfaceUtils.showRequestFailedAlert();
             };
 
@@ -338,6 +337,7 @@ $(document).ready(function(){
         function UserInterfaceUtils(){
 
             const NUM_OF_GRID_CELLS = 16;
+            const ALERT_DISPALY_TIME = 3000; // in ms
             
             // cache DOM nodes
             const $body = $('body');
@@ -347,6 +347,7 @@ $(document).ready(function(){
             const $trainingImageGridDiv = $('#training-image-grid');
             const $trainingImageMsg = $('#training-image-message');
             const $requestFailedAlert = $('#ai-request-failed-alert');
+            const $sliders = $('.customized-slider');
 
             this.canvasForTiffImgSideLength = 0;
 
@@ -358,6 +359,7 @@ $(document).ready(function(){
             this.initEventHandlers = function(){
                 let self = this;
                 $body.on('click', '.grid-cell', trainingImageGridCellOnClickHandler);
+                $sliders.on('change', sliderOnChangeHandler);
 
                 function trainingImageGridCellOnClickHandler(evt){
                     let targetGridCell = $(this);
@@ -368,6 +370,12 @@ $(document).ready(function(){
                         // console.log(imageTileDataURL);
                         landcoverApp.addImageToLandcoverMapImageLayer(imageTileDataURL);
                     });
+                }
+
+                function sliderOnChangeHandler(evt){
+                    let targetSlider = $(this);
+                    let targetSliderVal = targetSlider.val();
+                    console.log(targetSliderVal);
                 }
             };
 
@@ -461,19 +469,15 @@ $(document).ready(function(){
             };
 
             this.showRequestFailedAlert = function(){
+                this.toggleLoadingIndicator(false);
                 $requestFailedAlert.removeClass('hide');
                 setTimeout(function(){
                     $requestFailedAlert.addClass('hide');
-                }, 2500);
+                }, ALERT_DISPALY_TIME);
             };
 
 
         }
-
-
-
-        
-
 
     }
 });
