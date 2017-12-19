@@ -16,6 +16,7 @@ $(document).ready(function(){
     dojo.require("esri/request");
 
     dojo.require("esri/geometry/Extent");
+    dojo.require("esri/geometry/Point");
     dojo.require("esri/symbols/SimpleLineSymbol");
     dojo.require("esri/graphic");
     
@@ -62,6 +63,7 @@ $(document).ready(function(){
             this.NAIPImageServerURL = null;
             this.shiftValues = [5, 5, 5, 5]; // [water, forest, field, build], value range 0-10 with 1 decimal place
             this.extentForSelectedArea = null;
+            this.lockForSelectedArea = false;
 
             this.symbolForSquareAreaReferenceGraphic = null;
             this.symbolForSquareAreaHighlightGraphic = null;
@@ -84,6 +86,9 @@ $(document).ready(function(){
 
             this._setExtentForSelectedArea = function(extent){
                 this.extentForSelectedArea = extent;
+                if(extent){
+                    userInterfaceUtils.updateTileSelectionCtrlPanelPosition();
+                }
             }
 
             this._getShiftValues = function(){
@@ -91,13 +96,22 @@ $(document).ready(function(){
                 return shifts;
             };
 
+            this.toggleLockForSelectedArea = function(isLocked=false){
+                this.lockForSelectedArea = isLocked;
+            }
+
             // call this function to set and reset the shiftValues
             this.updateShiftValues = function(index=null, value=null){
                 if(!index && !value){
                     this.shiftValues = [5, 5, 5, 5];
                 } else {
-                    this.shiftValues[index] = value * 1.0 / 10;
+                    // this.shiftValues[index] = value * 1.0 / 10;
+                    this.shiftValues[index] = value;
                 }
+
+                if(this.extentForSelectedArea){
+                    this._getLandcoverImgForSelectedArea(this.extentForSelectedArea);
+                }                
             }
 
             this._setNAIPImageServerURL = function(webMapResopnse){
@@ -150,33 +164,74 @@ $(document).ready(function(){
                 map.on('mouse-move', evt=>{
                     this._mapOnMousemoveHandler(evt);
                 });
+                map.on('pan-start', (point, extent)=>{
+                    this._mapOnMoveStartHandler();
+                });
+                map.on('pan-end', (point, extent)=>{
+                    this._mapOnMoveEndHandler();
+                });
+                map.on('zoom-start', (point, extent)=>{
+                    this._mapOnMoveStartHandler();
+                });
+                map.on('zoom-end', (point, extent)=>{
+                    this._mapOnMoveEndHandler();
+                });
             };
 
             // show area select highlight layer on click
             this._mapOnClickHandler = function(evt){    
                 //console.log(evt);
-                let areaSelectHighlightGraphic = this._getSquareAreaGraphic(evt);
-                this._clearLandcoverMapImage();
-                this._addGraphicToAreaSelectLayer(areaSelectHighlightGraphic);
-                this._getLandcoverImgForSelectedArea(evt.mapPoint);
+                if(!this.lockForSelectedArea){
+                    this.resetSeletcedArea();
+                    let areaSelectHighlightGraphic = this._getSquareAreaGraphic(evt);
+                    let sqExtent = this._getSquareExtentByMapPoint(evt.mapPoint);
+                    this._setExtentForSelectedArea(sqExtent);
+                    this._updateAreaSelectLayer(areaSelectHighlightGraphic);
+                    this._getLandcoverImgForSelectedArea(sqExtent);
+                } 
+                // lock selected area to prevent selecting another area while processing and reviewing lan cover image for the current area
+                this.toggleLockForSelectedArea(true); 
             };
 
             // show area select reference layer on mousemove
             this._mapOnMousemoveHandler = function(evt){
                 // console.log(evt);
-                let sqAreaReferenceGraphic = this._getSquareAreaGraphic(evt);
-                this.map.graphics.clear();
-                this.map.graphics.add(sqAreaReferenceGraphic);                
+                if(!this.lockForSelectedArea){
+                    let sqAreaReferenceGraphic = this._getSquareAreaGraphic(evt);
+                    this.map.graphics.clear();
+                    this.map.graphics.add(sqAreaReferenceGraphic);    
+                } else {
+                    this.map.graphics.clear();
+                }
             };
 
-            this._getLandcoverImgForSelectedArea = function(mapPoint){
+            this._mapOnMoveStartHandler = function(){
+                if(this.extentForSelectedArea){
+                    // console.log('start panning/zooming, hide panel for selected tile');
+                    userInterfaceUtils.toggleTileSelectionControlPanel(false);
+                }
+            };
 
-                userInterfaceUtils.toggleLoadingIndicator(true);
+            this._mapOnMoveEndHandler = function(point, extent){
+                if(this.extentForSelectedArea){
+                    userInterfaceUtils.updateTileSelectionCtrlPanelPosition();
+                    userInterfaceUtils.toggleTileSelectionControlPanel(true);
+                }
+            };
+
+            this.resetSeletcedArea = function(){
+                this._clearLandcoverMapImage();
+                this._setExtentForSelectedArea(null);
+                this._updateAreaSelectLayer(null);
+                userInterfaceUtils.toggleTileSelectionControlPanel(false);
                 userInterfaceUtils.toggleTrainingImageContainer(false);
                 userInterfaceUtils.resetTrainingImageGridCells();
+            }
 
-                let sqExtent = this._getSquareExtentByMapPoint(mapPoint);
-                this._setExtentForSelectedArea(sqExtent);
+            this._getLandcoverImgForSelectedArea = function(sqExtent){
+
+                userInterfaceUtils.toggleLoadingIndicator(true);
+
                 this._exportNAIPImageForSelectedArea(sqExtent).then(response=>{
                     if(response.error){
                         console.error("error when export NAIP image", response.error);
@@ -282,10 +337,12 @@ $(document).ready(function(){
             };
 
             // highlight the user selected area
-            this._addGraphicToAreaSelectLayer = function(graphic){
+            this._updateAreaSelectLayer = function(graphicToAdd=null){
                 let areaSelectGraphicLayer = this.map.getLayer(AREA_SELECT_GRAPHIC_LAYER_ID);
                 areaSelectGraphicLayer.clear();
-                areaSelectGraphicLayer.add(graphic);
+                if(graphicToAdd){
+                    areaSelectGraphicLayer.add(graphicToAdd);
+                }
             };
 
             this._getSquareAreaGraphic = function(evt){
@@ -298,7 +355,7 @@ $(document).ready(function(){
 
             this._getSymbolForSquareAreaGraphicByEventType = function(eventType){
                 const FILL_COLOR_FOR_REF_GRAPHIC = [50,50,50,100];
-                const OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC = [255, 0, 0, 200];
+                const OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC = [0, 0, 0, 130];
 
                 this.symbolForSquareAreaReferenceGraphic = (!this.symbolForSquareAreaReferenceGraphic) ? this._getSimpleFillSymbol(FILL_COLOR_FOR_REF_GRAPHIC) : this.symbolForSquareAreaReferenceGraphic;
                 this.symbolForSquareAreaHighlightGraphic = (!this.symbolForSquareAreaHighlightGraphic) ? this._getSimpleFillSymbol(null, OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC) : this.symbolForSquareAreaHighlightGraphic;
@@ -316,7 +373,24 @@ $(document).ready(function(){
                     "spatialReference": this.map.spatialReference
                 });
                 return extent;
-            }
+            };
+
+            this.getScreenPositionForSelectedArea = function(){
+                let extent = this.extentForSelectedArea;
+                let topLeftPoint = new esri.geometry.Point( {"x": extent.xmin, "y": extent.ymax, "spatialReference": {" wkid": extent.spatialReference.wkid } });
+                let topRightPoint = new esri.geometry.Point( {"x": extent.xmax, "y": extent.ymax, "spatialReference": {" wkid": extent.spatialReference.wkid } });
+                let topLeftScreenPoint = this._convertMapPointToScreenPoint(topLeftPoint);
+                let topRightScreenPoint = this._convertMapPointToScreenPoint(topRightPoint);
+                return {
+                    'topLeftScreenPoint': topLeftScreenPoint,
+                    'topRightScreenPoint': topRightScreenPoint
+                };
+            };
+
+            this._convertMapPointToScreenPoint = function(mapPoint){
+                let screenPoint = esri.geometry.toScreenPoint(this.map.extent, this.map.width, this.map.height, mapPoint);
+                return screenPoint;
+            };
 
             this._getSimpleFillSymbol = function(fillColorRGBA=[0,0,0,0], outlineColorRGBA=[0,0,0,0]){
                 let symbol = new esri.symbol.SimpleFillSymbol({
@@ -327,10 +401,14 @@ $(document).ready(function(){
                         "type": "esriSLS",
                         "style": "esriSLSSolid",
                         "color": outlineColorRGBA,
-                        "width": 1
+                        "width": .5
                     }
                 });
                 return symbol;
+            };
+
+            this.getMapZoomLevel = function(){
+                return this.map.getZoom();
             }
         }
 
@@ -348,6 +426,9 @@ $(document).ready(function(){
             const $trainingImageMsg = $('#training-image-message');
             const $requestFailedAlert = $('#ai-request-failed-alert');
             const $sliders = $('.customized-slider');
+            const $tileSelectionCtrlPanel = $('#tile-selection-control-panel');
+            const $animationBtnsContainer = $('#animation-btns-container');
+            const $tileSelectionCloseBtn = $('#close-tile-selection-btn')
 
             this.canvasForTiffImgSideLength = 0;
 
@@ -360,6 +441,7 @@ $(document).ready(function(){
                 let self = this;
                 $body.on('click', '.grid-cell', trainingImageGridCellOnClickHandler);
                 $sliders.on('change', sliderOnChangeHandler);
+                $tileSelectionCloseBtn.on('click', tileSelectionCloseBtnOnClickHandler);
 
                 function trainingImageGridCellOnClickHandler(evt){
                     let targetGridCell = $(this);
@@ -369,15 +451,51 @@ $(document).ready(function(){
                     self._getTrainingImageTile(targetCellIndex).then(imageTileDataURL=>{
                         // console.log(imageTileDataURL);
                         landcoverApp.addImageToLandcoverMapImageLayer(imageTileDataURL);
+                        self.toggleTileSelectionControlPanel(true);
                     });
                 }
 
                 function sliderOnChangeHandler(evt){
                     let targetSlider = $(this);
-                    let targetSliderVal = targetSlider.val();
-                    console.log(targetSliderVal);
+                    let targetSliderIndex = $sliders.index(this);
+                    let targetSliderVal = +targetSlider.val();
+                    landcoverApp.updateShiftValues(targetSliderIndex, targetSliderVal);
+                    // console.log(targetSliderIndex, targetSliderVal);
+                }
+
+                function tileSelectionCloseBtnOnClickHandler(evt){
+                    landcoverApp.resetSeletcedArea();
+                    landcoverApp.toggleLockForSelectedArea(false); // unlock the selected area so user can select new area
                 }
             };
+
+            this.toggleTileSelectionControlPanel = function(isVisible){
+                let isCtrlPanelActive = $('.grid-cell').hasClass('active');
+                let zoomLevel = landcoverApp.getMapZoomLevel();
+                let isVisibleInCurrentZoomLevel = ( zoomLevel >= 15) ? true : false;
+                // console.log(isVisibleInCurrentZoomLevel);
+
+                if(zoomLevel >= 16){
+                    $animationBtnsContainer.removeClass('hide');
+                } else {
+                    $animationBtnsContainer.addClass('hide');
+                }
+
+                if(isVisible && isCtrlPanelActive && isVisibleInCurrentZoomLevel){
+                    $tileSelectionCtrlPanel.removeClass('hide');
+                } else {
+                    $tileSelectionCtrlPanel.addClass('hide');
+                }
+            };
+
+            this.updateTileSelectionCtrlPanelPosition = function(topLeftScreenPoint, topRightScreenPoint){
+                // console.log(topLeftScreenPoint, topRightScreenPoint);
+                let screenPos = landcoverApp.getScreenPositionForSelectedArea();
+                let $tileSelectionCtrlPanelHeight = $tileSelectionCtrlPanel.height();
+                $tileSelectionCtrlPanel.css('top', (screenPos.topLeftScreenPoint.y - $tileSelectionCtrlPanelHeight) + 'px');
+                $tileSelectionCtrlPanel.css('left', screenPos.topLeftScreenPoint.x - 1 + 'px');
+                $tileSelectionCtrlPanel.css('width', (screenPos.topRightScreenPoint.x - screenPos.topLeftScreenPoint.x + 1)  + 'px' );
+            }
 
             this.populateTrainingImage = function(imageData){
                 $trainingImage.attr('src', imageData);
