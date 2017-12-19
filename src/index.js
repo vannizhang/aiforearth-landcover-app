@@ -135,8 +135,10 @@ $(document).ready(function(){
             };
 
             this._initMapImageLayerForLandcover = function(map){
+                let opacityVal = userInterfaceUtils.getOpacitySliderValue();
                 var mapImageLayer = new esri.layers.MapImageLayer({
-                    'id': LANDCOVER_MAP_IMAGE_LAYER_ID
+                    'id': LANDCOVER_MAP_IMAGE_LAYER_ID,
+                    'opacity': opacityVal
                 });
                 map.addLayer(mapImageLayer);
             };
@@ -148,8 +150,15 @@ $(document).ready(function(){
                     'href': imageURL
                 });
                 let mapImageLayer = this.map.getLayer(LANDCOVER_MAP_IMAGE_LAYER_ID);
+                // let opacityVal = userInterfaceUtils.getOpacitySliderValue();
+                // this.setOpcityForLandcoverMapImageLayer(opacityVal);
                 mapImageLayer.removeAllImages();
                 mapImageLayer.addImage(mapImage);
+            }
+
+            this.setOpcityForLandcoverMapImageLayer = function(value){
+                let mapImageLayer = this.map.getLayer(LANDCOVER_MAP_IMAGE_LAYER_ID);
+                mapImageLayer.setOpacity(value);
             }
 
             this._clearLandcoverMapImage = function(){
@@ -427,6 +436,7 @@ $(document).ready(function(){
             const $requestFailedAlert = $('#ai-request-failed-alert');
             const $sliders = $('.customized-slider');
             const $tileSelectionCtrlPanel = $('#tile-selection-control-panel');
+            const $opacitySlider = $('#opacity-slider');
             const $animationBtnsContainer = $('#animation-btns-container');
             const $tileSelectionCloseBtn = $('#close-tile-selection-btn')
 
@@ -442,6 +452,7 @@ $(document).ready(function(){
                 $body.on('click', '.grid-cell', trainingImageGridCellOnClickHandler);
                 $sliders.on('change', sliderOnChangeHandler);
                 $tileSelectionCloseBtn.on('click', tileSelectionCloseBtnOnClickHandler);
+                $opacitySlider.on('change', opacitySliderOnChangeHandler);
 
                 function trainingImageGridCellOnClickHandler(evt){
                     let targetGridCell = $(this);
@@ -467,6 +478,19 @@ $(document).ready(function(){
                     landcoverApp.resetSeletcedArea();
                     landcoverApp.toggleLockForSelectedArea(false); // unlock the selected area so user can select new area
                 }
+
+                function opacitySliderOnChangeHandler(evt){
+                    // let targetSlider = $(this);
+                    // let currentValue = +targetSlider.val();
+                    let opacityValue = self.getOpacitySliderValue();
+                    landcoverApp.setOpcityForLandcoverMapImageLayer(opacityValue);
+                }
+            };
+
+            this.getOpacitySliderValue = function(){
+                let value = $opacitySlider.val();
+                value = (10 - value) / 10;
+                return +value;
             };
 
             this.toggleTileSelectionControlPanel = function(isVisible){
