@@ -300,9 +300,9 @@ $(document).ready(function(){
                     var canvasForTiffImg = tiff.toCanvas();
                     if (canvasForTiffImg) {
                         let imageData = canvasForTiffImg.toDataURL();
-                        userInterfaceUtils.populateTrainingImage(imageData);
                         userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
                         userInterfaceUtils.toggleLoadingIndicator(false);
+                        userInterfaceUtils.populateTrainingImage(imageData);
                     }
                 };
                 xhr.send();
@@ -471,6 +471,9 @@ $(document).ready(function(){
                     let targetSliderIndex = $sliders.index(this);
                     let targetSliderVal = +targetSlider.val();
                     landcoverApp.updateShiftValues(targetSliderIndex, targetSliderVal);
+                    self.toggleTrainingImageContainer(false);
+                    self.populateTileFromActiveGridCellToMap();
+                    // self.resetTrainingImageGridCells();
                     // console.log(targetSliderIndex, targetSliderVal);
                 }
 
@@ -524,7 +527,17 @@ $(document).ready(function(){
             this.populateTrainingImage = function(imageData){
                 $trainingImage.attr('src', imageData);
                 this.toggleTrainingImageContainer(true);
+                this.populateTileFromActiveGridCellToMap();
             };
+
+            this.populateTileFromActiveGridCellToMap = function(){
+                let isActiveGridCell = $('.grid-cell').hasClass('active');
+                if(isActiveGridCell){
+                    $('.grid-cell').find('active').trigger('click');
+                } else {
+                    $('.grid-cell:eq(0)').trigger('click'); // add the first tile from the training image to the map
+                }
+            }
 
             this.getCanvasForTiffImgSideLength = function(canvas){
                 this.canvasForTiffImgSideLength = $(canvas).attr('width');
