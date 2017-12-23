@@ -31,8 +31,9 @@ $(document).ready(function(){
         // app config data
         const WEB_MAP_ID = "0a5a934c55594e209d1e6f5cde00bae2";
         const MAP_CONTAINER_ID = 'mapDiv';
-        const MS_AZURE_SERVER_URL = "http://vm-land-arcgis1.eastus.cloudapp.azure.com";
-        const LANDCOVER_PROCESSING_SERVICE_URL ="http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml";
+        // const MS_AZURE_SERVER_URL = "http://vm-land-arcgis1.eastus.cloudapp.azure.com";
+        // const LANDCOVER_PROCESSING_SERVICE_URL ="http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml";
+        const LANDCOVER_PROCESSING_SERVICE_URL ="http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml";
 
         const LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
         const AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer'; 
@@ -364,7 +365,7 @@ $(document).ready(function(){
 
             this._getSymbolForSquareAreaGraphicByEventType = function(eventType){
                 const FILL_COLOR_FOR_REF_GRAPHIC = [50,50,50,100];
-                const OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC = [0, 0, 0, 130];
+                const OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC = [0, 0, 0, 200];
 
                 this.symbolForSquareAreaReferenceGraphic = (!this.symbolForSquareAreaReferenceGraphic) ? this._getSimpleFillSymbol(FILL_COLOR_FOR_REF_GRAPHIC) : this.symbolForSquareAreaReferenceGraphic;
                 this.symbolForSquareAreaHighlightGraphic = (!this.symbolForSquareAreaHighlightGraphic) ? this._getSimpleFillSymbol(null, OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC) : this.symbolForSquareAreaHighlightGraphic;
