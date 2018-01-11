@@ -17,7 +17,7 @@ module.exports = {
     },
     devServer: {
         contentBase: "./build", 
-        inline: true 
+        inline: true,
     },
     module: {
         loaders: [

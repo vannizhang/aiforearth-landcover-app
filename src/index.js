@@ -8,6 +8,7 @@ import './style/main.css';
 import { setTimeout } from 'timers';
 
 // import other files
+import cities from './us-cities-coordinates.json';
 // import testTiff from './assets/test.tif';
 
 $(document).ready(function(){
@@ -61,6 +62,7 @@ $(document).ready(function(){
         function LandcoverApp(){
 
             this.map = null;
+            this.NAIPLayer = null;
             this.NAIPImageServerURL = null;
             this.shiftValues = [5, 5, 5, 5]; // [water, forest, field, build], value range 0-10 with 1 decimal place
             this.extentForSelectedArea = null;
@@ -78,11 +80,16 @@ $(document).ready(function(){
                     this._setMapEventHandlers(map);
                     this._initAreaSelectGraphicLayer(map);
                     this._initMapImageLayerForLandcover(map);
+                    this.flyToRandomLocation();
                 });
             };
 
             this._setMap = function(map){
                 this.map = map;
+            };
+
+            this._setNAIPLayer = function(layer){
+                this.NAIPLayer = layer;
             };
 
             this._setExtentForSelectedArea = function(extent){
@@ -121,6 +128,7 @@ $(document).ready(function(){
                     return d.title === 'NAIP';
                 })[0];
                 if(NAIPLayer){
+                    this._setNAIPLayer(NAIPLayer.layerObject);
                     this.NAIPImageServerURL = NAIPLayer.url;
                 } else {
                     console.log('NAIP layer not found!');
@@ -186,6 +194,9 @@ $(document).ready(function(){
                 map.on('zoom-end', (point, extent)=>{
                     this._mapOnMoveEndHandler();
                 });
+                map.on('update-end', ()=>{
+                    this._mapOnUpdateEndHandler();
+                });
             };
 
             // show area select highlight layer on click
@@ -228,6 +239,10 @@ $(document).ready(function(){
                     userInterfaceUtils.toggleTileSelectionControlPanel(true);
                 }
             };
+
+            this._mapOnUpdateEndHandler = function(){
+                this.toggleNAIPLayer(true);
+            }
 
             this.resetSeletcedArea = function(){
                 this._clearLandcoverMapImage();
@@ -419,7 +434,39 @@ $(document).ready(function(){
 
             this.getMapZoomLevel = function(){
                 return this.map.getZoom();
-            }
+            };
+
+            this.zoomIn = function(){
+                let newZoomLevel = this.getMapZoomLevel() + 1;
+                this.map.setZoom(newZoomLevel);
+            };
+
+            this.zoomOut = function(){
+                let newZoomLevel = this.getMapZoomLevel() - 1;
+                this.map.setZoom(newZoomLevel);
+            };
+
+            this._getRandomCityCoord = function(){
+                let randomItemIndex = Math.floor(Math.random() * cities.length);
+                let randomCityCoord = cities[randomItemIndex].fields.coordinates;
+                return randomCityCoord;
+            };
+
+            this.flyToRandomLocation = function(){
+                let randomLocationCoord = this._getRandomCityCoord();
+                let randomLocationPt = new esri.geometry.Point({"x": randomLocationCoord[1], "y": randomLocationCoord[0], "spatialReference": {"wkid": 4326 } });
+                this.map.centerAt(randomLocationPt);
+                this.toggleLockForSelectedArea(false); 
+            };
+
+            this.toggleNAIPLayer = function(isVisible){
+                if(isVisible){
+                    this.NAIPLayer.show();
+                } else {
+                    this.NAIPLayer.hide();
+                }
+            };
+
         }
 
         function UserInterfaceUtils(){
@@ -439,7 +486,10 @@ $(document).ready(function(){
             const $tileSelectionCtrlPanel = $('#tile-selection-control-panel');
             const $opacitySlider = $('#opacity-slider');
             const $animationBtnsContainer = $('#animation-btns-container');
-            const $tileSelectionCloseBtn = $('#close-tile-selection-btn')
+            const $tileSelectionCloseBtn = $('#close-tile-selection-btn');
+            const $zoomInBtn = $('.js-zoom-in');
+            const $zoomOutBtn = $('.js-zoom-out');
+            const $flyToRandomLocationBtn = $('.js-fly-to-random-location');
 
             this.canvasForTiffImgSideLength = 0;
 
@@ -454,6 +504,9 @@ $(document).ready(function(){
                 $sliders.on('change', sliderOnChangeHandler);
                 $tileSelectionCloseBtn.on('click', tileSelectionCloseBtnOnClickHandler);
                 $opacitySlider.on('change', opacitySliderOnChangeHandler);
+                $zoomInBtn.on('click', zoomInBtnOnClickHandler);
+                $zoomOutBtn.on('click', zoomOutBtnOnClickHandler);
+                $flyToRandomLocationBtn.on('click', flyToRandomLocationBtnOnClickHandler);
 
                 function trainingImageGridCellOnClickHandler(evt){
                     let targetGridCell = $(this);
@@ -489,12 +542,31 @@ $(document).ready(function(){
                     let opacityValue = self.getOpacitySliderValue();
                     landcoverApp.setOpcityForLandcoverMapImageLayer(opacityValue);
                 }
+
+                function flyToRandomLocationBtnOnClickHandler(evt){
+                    self.resetLandcoverSliderValues();
+                    self.toggleTrainingImageContainer();
+                    landcoverApp.toggleNAIPLayer(false);
+                    landcoverApp.flyToRandomLocation();
+                }
+
+                function zoomInBtnOnClickHandler(evt){
+                    landcoverApp.zoomIn();
+                }
+
+                function zoomOutBtnOnClickHandler(evt){
+                    landcoverApp.zoomOut();
+                }
             };
 
             this.getOpacitySliderValue = function(){
                 let value = $opacitySlider.val();
                 value = (10 - value) / 10;
                 return +value;
+            };
+
+            this.resetLandcoverSliderValues = function(){
+                $sliders.val(5);
             };
 
             this.toggleTileSelectionControlPanel = function(isVisible){
