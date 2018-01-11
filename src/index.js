@@ -447,17 +447,23 @@ $(document).ready(function(){
                 this.map.setZoom(newZoomLevel);
             };
 
-            this._getRandomCityCoord = function(){
+            this._getRandomCity = function(){
                 let randomItemIndex = Math.floor(Math.random() * cities.length);
                 let randomCityCoord = cities[randomItemIndex].fields.coordinates;
-                return randomCityCoord;
+                let randomCityLabel = cities[randomItemIndex].fields.city + ', ' + cities[randomItemIndex].fields.state;
+                return {
+                    'label': randomCityLabel,
+                    'coordinates': randomCityCoord
+                };
             };
 
             this.flyToRandomLocation = function(){
-                let randomLocationCoord = this._getRandomCityCoord();
-                let randomLocationPt = new esri.geometry.Point({"x": randomLocationCoord[1], "y": randomLocationCoord[0], "spatialReference": {"wkid": 4326 } });
+                this.toggleNAIPLayer(false);
+                let randomCity = this._getRandomCity();
+                let randomLocationPt = new esri.geometry.Point({"x": randomCity.coordinates[1], "y": randomCity.coordinates[0], "spatialReference": {"wkid": 4326 } });
                 this.map.centerAt(randomLocationPt);
                 this.toggleLockForSelectedArea(false); 
+                userInterfaceUtils.showCurrentLocationAlert(randomCity.label);
             };
 
             this.toggleNAIPLayer = function(isVisible){
@@ -473,7 +479,7 @@ $(document).ready(function(){
         function UserInterfaceUtils(){
 
             const NUM_OF_GRID_CELLS = 16;
-            const ALERT_DISPALY_TIME = 3000; // in ms
+            const ALERT_DISPALY_TIME = 6000; // in ms
             
             // cache DOM nodes
             const $body = $('body');
@@ -483,6 +489,7 @@ $(document).ready(function(){
             const $trainingImageGridDiv = $('#training-image-grid');
             const $trainingImageMsg = $('#training-image-message');
             const $requestFailedAlert = $('#ai-request-failed-alert');
+            const $currentLocationAlert = $('#current-location-alert');
             const $sliders = $('.customized-slider');
             const $tileSelectionCtrlPanel = $('#tile-selection-control-panel');
             const $opacitySlider = $('#opacity-slider');
@@ -546,7 +553,6 @@ $(document).ready(function(){
 
                 function flyToRandomLocationBtnOnClickHandler(evt){
                     landcoverApp.resetSeletcedArea();
-                    landcoverApp.toggleNAIPLayer(false);
                     landcoverApp.flyToRandomLocation();
                 }
 
@@ -704,6 +710,13 @@ $(document).ready(function(){
                 }, ALERT_DISPALY_TIME);
             };
 
+            this.showCurrentLocationAlert = function(locationText){
+                $currentLocationAlert.html('<span class="avenir-demi">' + locationText + '</span>');
+                $currentLocationAlert.removeClass('hide');
+                setTimeout(function(){
+                    $currentLocationAlert.addClass('hide');
+                }, ALERT_DISPALY_TIME);
+            };
 
         }
 
