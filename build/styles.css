@@ -23,6 +23,10 @@
     right: 25px;
 }
 
+#mapDiv_zoom_slider {
+    display: none;
+}
+
 /* Styles for Tile Selection Panel */
 #tile-selection-control-panel{
     position: absolute;

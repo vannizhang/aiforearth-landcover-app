@@ -251,6 +251,7 @@ $(document).ready(function(){
                 userInterfaceUtils.toggleTileSelectionControlPanel(false);
                 userInterfaceUtils.toggleTrainingImageContainer(false);
                 userInterfaceUtils.resetTrainingImageGridCells();
+                userInterfaceUtils.resetLandcoverSliderValues();
             }
 
             this._getLandcoverImgForSelectedArea = function(sqExtent){
@@ -544,8 +545,7 @@ $(document).ready(function(){
                 }
 
                 function flyToRandomLocationBtnOnClickHandler(evt){
-                    self.resetLandcoverSliderValues();
-                    self.toggleTrainingImageContainer();
+                    landcoverApp.resetSeletcedArea();
                     landcoverApp.toggleNAIPLayer(false);
                     landcoverApp.flyToRandomLocation();
                 }
