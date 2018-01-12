@@ -23,9 +23,9 @@ html, body {
     right: 25px;
 }
 
-#mapDiv_zoom_slider {
+/* #mapDiv_zoom_slider {
     display: none;
-}
+} */
 
 /* Styles for Tile Selection Panel */
 #tile-selection-control-panel{
@@ -261,9 +261,14 @@ input.customized-slider{
     line-height: 38.25px;
     width: 40px;
     text-align: center;
-    color: #ccc;
+    color: #a9a9a9;
     background-color: #595959;
     border: solid 1px #6e6e6e;
+}
+
+.control-btn.is-active {
+    color: #efefef;
+    font-weight: 500;
 }
 
 .submit-training-data-btn {

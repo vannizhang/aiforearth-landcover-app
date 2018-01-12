@@ -34,7 +34,12 @@ $(document).ready(function(){
         const MAP_CONTAINER_ID = 'mapDiv';
         // const MS_AZURE_SERVER_URL = "http://vm-land-arcgis1.eastus.cloudapp.azure.com";
         // const LANDCOVER_PROCESSING_SERVICE_URL ="http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml";
+
         const LANDCOVER_PROCESSING_SERVICE_URL ="http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml";
+        const LANDCOVER_PROCESSING_SERVICE_URLS = [
+            "http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml",
+            "http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml"
+        ];
 
         const LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
         const AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer'; 
@@ -74,8 +79,9 @@ $(document).ready(function(){
             this.extentForSelectedArea = null;
             this.lockForSelectedArea = false;
             this.landcoverImageOutputType = DEFAULT_LANDCOVER_IMAGE_OUTPUT_TYPE; // output_hard or output_soft;
+            this.aiServerUrl = null;
             this.aiServerResponse = null;
-
+            
             this.symbolForSquareAreaReferenceGraphic = null;
             this.symbolForSquareAreaHighlightGraphic = null;
             
@@ -88,6 +94,7 @@ $(document).ready(function(){
                     this._setMapEventHandlers(map);
                     this._initAreaSelectGraphicLayer(map);
                     this._initMapImageLayerForLandcover(map);
+                    this.setAiServerURL(LANDCOVER_PROCESSING_SERVICE_URLS[0]);
                     this.flyToRandomLocation();
                 });
             };
@@ -98,6 +105,10 @@ $(document).ready(function(){
 
             this._setNAIPLayer = function(layer){
                 this.NAIPLayer = layer;
+            };
+
+            this.setAiServerURL = function(url){
+                this.aiServerUrl = url;
             };
 
             this._setAiServerResponse = function(response){
@@ -300,7 +311,7 @@ $(document).ready(function(){
             this._requestAIServer = function(params){
                 $.ajax({
                     type: "POST",
-                    url: LANDCOVER_PROCESSING_SERVICE_URL,
+                    url: this.aiServerUrl,
                     data: params,
                     dataType : 'json',
                     crossDomain: true,
@@ -486,7 +497,7 @@ $(document).ready(function(){
                 let randomLocationPt = new esri.geometry.Point({"x": randomCity.coordinates[1], "y": randomCity.coordinates[0], "spatialReference": {"wkid": 4326 } });
                 this.map.centerAt(randomLocationPt);
                 this.toggleLockForSelectedArea(false); 
-                userInterfaceUtils.showCurrentLocationAlert(randomCity.label);
+                userInterfaceUtils.showMessage(randomCity.label);
             };
 
             this.toggleNAIPLayer = function(isVisible){
@@ -512,14 +523,13 @@ $(document).ready(function(){
             const $trainingImageGridDiv = $('#training-image-grid');
             const $trainingImageMsg = $('#training-image-message');
             const $requestFailedAlert = $('#ai-request-failed-alert');
-            const $currentLocationAlert = $('#current-location-alert');
+            const $gerenalInfoAlert = $('#general-info-alert');
             const $sliders = $('.customized-slider');
             const $tileSelectionCtrlPanel = $('#tile-selection-control-panel');
             const $opacitySlider = $('#opacity-slider');
             const $animationBtnsContainer = $('#animation-btns-container');
             const $tileSelectionCloseBtn = $('#close-tile-selection-btn');
-            const $zoomInBtn = $('.js-zoom-in');
-            const $zoomOutBtn = $('.js-zoom-out');
+            const $swicthServiceBtn = $('.js-switch-ldhandler-service-url');
             const $flyToRandomLocationBtn = $('.js-fly-to-random-location');
             const $selectOutputTypeBtn = $('.js-select-output-type-btn');
 
@@ -536,8 +546,7 @@ $(document).ready(function(){
                 $sliders.on('change', sliderOnChangeHandler);
                 $tileSelectionCloseBtn.on('click', tileSelectionCloseBtnOnClickHandler);
                 $opacitySlider.on('change', opacitySliderOnChangeHandler);
-                $zoomInBtn.on('click', zoomInBtnOnClickHandler);
-                $zoomOutBtn.on('click', zoomOutBtnOnClickHandler);
+                $swicthServiceBtn.on('click', swicthServiceBtnOnClickHandler);
                 $flyToRandomLocationBtn.on('click', flyToRandomLocationBtnOnClickHandler);
                 $selectOutputTypeBtn.on('click', selectOutputTypeBtnOnClickHandler);
 
@@ -580,12 +589,13 @@ $(document).ready(function(){
                     landcoverApp.flyToRandomLocation();
                 }
 
-                function zoomInBtnOnClickHandler(evt){
-                    landcoverApp.zoomIn();
-                }
-
-                function zoomOutBtnOnClickHandler(evt){
-                    landcoverApp.zoomOut();
+                function swicthServiceBtnOnClickHandler(evt){
+                    let targetBtn = $(this);
+                    let targetBtnIdx = +targetBtn.attr('data-url-index');
+                    targetBtn.addClass('is-active');
+                    targetBtn.siblings().removeClass('is-active');
+                    landcoverApp.setAiServerURL(LANDCOVER_PROCESSING_SERVICE_URLS[targetBtnIdx]);
+                    self.showMessage('Switched to use LC Handler Service ' + (targetBtnIdx + 1));
                 }
 
                 function selectOutputTypeBtnOnClickHandler(evt){
@@ -744,11 +754,11 @@ $(document).ready(function(){
                 }, ALERT_DISPALY_TIME);
             };
 
-            this.showCurrentLocationAlert = function(locationText){
-                $currentLocationAlert.html('<span class="avenir-demi">' + locationText + '</span>');
-                $currentLocationAlert.removeClass('hide');
+            this.showMessage = function(msgText){
+                $gerenalInfoAlert.html('<span class="avenir-demi">' + msgText + '</span>');
+                $gerenalInfoAlert.removeClass('hide');
                 setTimeout(function(){
-                    $currentLocationAlert.addClass('hide');
+                    $gerenalInfoAlert.addClass('hide');
                 }, ALERT_DISPALY_TIME);
             };
 

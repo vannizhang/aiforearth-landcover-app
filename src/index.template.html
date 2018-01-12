@@ -36,7 +36,7 @@
         Failed to get Land Cover Classification Image
     </div>
 
-    <div id='current-location-alert' class="alert alert-blue is-active hide">
+    <div id='general-info-alert' class="alert alert-blue is-active hide">
     </div>
 
     <div id='training-menu-container' class='panel panel-no-border'>
@@ -45,11 +45,11 @@
             <div class='location-search-input-wrap'>
                 <input class="input-group-input" type="text" placeholder="Location...">
             </div>
-            <div class='margin-left-half right control-btn mouse-pointer js-zoom-out'>
-                <span class="fa fa-minus" aria-hidden="true"></span>
+            <div class='margin-left-half right control-btn mouse-pointer font-size--3 js-switch-ldhandler-service-url tooltip tooltip-left is-active' data-url-index="0" aria-label="switch to LC Handler Server 1">
+                <span class="fa fa-cloud" aria-hidden="true"></span><span class='margin-left-quarter'>1</span>
             </div>
-            <div class='right control-btn margin-left-quarter mouse-pointer js-zoom-in'>
-                <span class="fa fa-plus" aria-hidden="true"></span>
+            <div class='right control-btn margin-left-quarter mouse-pointer font-size--3 js-switch-ldhandler-service-url tooltip tooltip-left' data-url-index="1" aria-label="switch to LC Handler Server 2">
+                <span class="fa fa-cloud" aria-hidden="true"></span><span class='margin-left-quarter'>2</span>
             </div>
             <div class='margin-left-half right control-btn mouse-pointer js-fly-to-random-location tooltip tooltip-left' aria-label="fly to a random location">
                 <span class="fa fa-random" aria-hidden="true"></span>
