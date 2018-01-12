@@ -15,7 +15,20 @@
         <div id="opacity-slider-container" class=''>
             <input id="opacity-slider" type="range" min="0" max="10" value="5" >
         </div>
-        <div id='animation-btns-container'></div>
+        <div id='output-types-btns-container'>
+            <!-- <nav class="breadcrumbs mouse-pointer margin-right-quarter right">
+                <a class="crumb js-select-output-type-btn is-active">classified</a>
+                <a class="crumb js-select-output-type-btn">confidence</a>
+            </nav> -->
+            <div class='inline-block font-size--3 margin-right-half right'>
+                <div class='inline-span-wrap inline-block right'>
+                    <span class="js-select-output-type-btn confidence-output-icon icon-span" data-output-type="confidence"></span>
+                </div>
+                <div class='inline-span-wrap inline-block margin-right-half right'>
+                    <span class="js-select-output-type-btn classified-output-icon icon-span is-active" data-output-type="classified"></span>
+                </div>
+            </div>
+        </div>
         <div id='close-tile-selection-btn' class='text-center'><span class='icon-ui-close font-size--2'></span></div>
     </div>
 
@@ -50,11 +63,21 @@
                 <div class='inline-block'>
                     <span class='font-size--3'>Choose a best fit</span>
                 </div>
-                <div class='inline-block font-size--3 right'>
-                    <nav class="breadcrumbs">
-                        <a href="javascript:void();" class="crumb js-select-output-type-btn is-active" data-output-type='output_hard'>classified</a>
-                        <a href="javascript:void();" class="crumb js-select-output-type-btn" data-output-type='output_soft'>confidence</a>
+                <!-- <div class='inline-block font-size--3 right'>
+                    <nav class="breadcrumbs mouse-pointer">
+                        <a class="crumb js-select-output-type-btn is-active">classified</a>
+                        <a class="crumb js-select-output-type-btn">confidence</a>
                     </nav>
+                </div> -->
+                <div class='inline-block font-size--3 right'>
+                    <div class='inline-span-wrap inline-block right'>
+                        <span class="confidence-output-icon icon-span"></span>
+                        <a href="javascript:void();" class="js-select-output-type-btn link-dark-gray" data-output-type="confidence">confidence</a>
+                    </div>
+                    <div class='inline-span-wrap inline-block right pseudo-divider'>
+                        <span class="classified-output-icon icon-span"></span>
+                        <a href="javascript:void();" class="js-select-output-type-btn is-active link-dark-gray" data-output-type="classified">classified</a>
+                    </div>
                 </div>
             </div>
 

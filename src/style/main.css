@@ -33,7 +33,7 @@ html, body {
     height: 30px;
     line-height: 30px;
     z-index: 100;
-    background-color: rgba(0,0,0,0.9);
+    background-color: rgba(0,0,0,0.75);
 
     display:flex;
     flex-direction: row;
@@ -68,8 +68,16 @@ html, body {
     height: 100%;
     flex-grow: 1;
     flex-shrink: 0;
-    flex-basis: 150px;
+    flex-basis: 50px;
     /* background-color: #987654; */
+}
+
+#output-types-btns-container .icon-span {
+    opacity: .5;
+}
+
+#output-types-btns-container .icon-span.is-active {
+    opacity: 1;
 }
 
 #close-tile-selection-btn {
@@ -275,8 +283,36 @@ input.customized-slider{
     background-color: rgba(0,0,0,0);
 }
 
-.crumb.is-active {
-    color: #ccc;
+a.is-active {
+    color: #efefef;
+    font-weight: 500;
+}
+
+.inline-span-wrap > span {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.icon-span {
+    width: 15px;
+    height: 15px;
+}
+
+.classified-output-icon {
+    background: url(../assets/classified-icon.png) center center no-repeat;
+    background-size: cover;
+}
+
+.confidence-output-icon {
+    background: url(../assets/confidence-icon.png) center center no-repeat;
+    background-size: cover;
+}
+
+.pseudo-divider::after {
+    content: '|';
+    font-weight: 400;
+    padding: 0 .5rem 0 .25rem;
+    display: inline-block;
 }
 
 /*  END of Styles for Floating Traning Panel */

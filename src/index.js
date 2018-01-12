@@ -590,11 +590,11 @@ $(document).ready(function(){
 
                 function selectOutputTypeBtnOnClickHandler(evt){
                     let targetBtn = $(this);
-                    let targetBtnLabel = targetBtn.text();
-                    targetBtn.siblings().removeClass('is-active');
-                    targetBtn.addClass('is-active');
+                    let outputType = targetBtn.attr('data-output-type');
+                    $selectOutputTypeBtn.removeClass('is-active');
+                    $('.js-select-output-type-btn[data-output-type="' + outputType + '"]').addClass('is-active'); // select by output type because we have two sets of js-select-output-type-btn
 
-                    landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[targetBtnLabel]);
+                    landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[outputType]);
                     landcoverApp.loadTiffImage();
                 }
             };
