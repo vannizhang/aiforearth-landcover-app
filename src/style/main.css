@@ -48,7 +48,7 @@ html, body {
     height: 100%;
     flex-grow: 1;
     flex-shrink: 0;
-    flex-basis: 100px;
+    flex-basis: 90px;
 
     display:flex;
     align-items:center;
@@ -63,7 +63,7 @@ html, body {
     margin: 0 5px;
 }
 
-#animation-btns-container {
+#output-types-btns-container {
     width: 150px;
     height: 100%;
     flex-grow: 1;
@@ -273,6 +273,10 @@ input.customized-slider{
 
 .panel-transparent {
     background-color: rgba(0,0,0,0);
+}
+
+.crumb.is-active {
+    color: #ccc;
 }
 
 /*  END of Styles for Floating Traning Panel */

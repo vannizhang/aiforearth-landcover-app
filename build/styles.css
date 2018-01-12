@@ -17,7 +17,7 @@
     padding: 0; 
 }
 
-#ai-request-failed-alert {
+.alert {
     position: absolute;
     bottom: 50px;
     right: 25px;
@@ -273,6 +273,10 @@ input.customized-slider{
 
 .panel-transparent {
     background-color: rgba(0,0,0,0);
+}
+
+.crumb.is-active {
+    color: #ccc;
 }
 
 /*  END of Styles for Floating Traning Panel */

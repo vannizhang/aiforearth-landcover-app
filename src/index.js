@@ -39,6 +39,12 @@ $(document).ready(function(){
         const LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
         const AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer'; 
 
+        const LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP = {
+            "classified": "output_hard",
+            "confidence": "output_soft"
+        };
+        const DEFAULT_LANDCOVER_IMAGE_OUTPUT_TYPE = LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP["classified"];
+
         // app variables
         let landcoverApp = null;
         let userInterfaceUtils = null;
@@ -67,6 +73,8 @@ $(document).ready(function(){
             this.shiftValues = [5, 5, 5, 5]; // [water, forest, field, build], value range 0-10 with 1 decimal place
             this.extentForSelectedArea = null;
             this.lockForSelectedArea = false;
+            this.landcoverImageOutputType = DEFAULT_LANDCOVER_IMAGE_OUTPUT_TYPE; // output_hard or output_soft;
+            this.aiServerResponse = null;
 
             this.symbolForSquareAreaReferenceGraphic = null;
             this.symbolForSquareAreaHighlightGraphic = null;
@@ -92,6 +100,10 @@ $(document).ready(function(){
                 this.NAIPLayer = layer;
             };
 
+            this._setAiServerResponse = function(response){
+                this.aiServerResponse = response;
+            };
+
             this._setExtentForSelectedArea = function(extent){
                 this.extentForSelectedArea = extent;
                 if(extent){
@@ -106,6 +118,10 @@ $(document).ready(function(){
 
             this.toggleLockForSelectedArea = function(isLocked=false){
                 this.lockForSelectedArea = isLocked;
+            }
+
+            this.setLandcoverImageOutputType = function(outputType){
+                this.landcoverImageOutputType = outputType;
             }
 
             // call this function to set and reset the shiftValues
@@ -248,6 +264,7 @@ $(document).ready(function(){
                 this._clearLandcoverMapImage();
                 this._setExtentForSelectedArea(null);
                 this._updateAreaSelectLayer(null);
+                this._setAiServerResponse(null);
                 userInterfaceUtils.toggleTileSelectionControlPanel(false);
                 userInterfaceUtils.toggleTrainingImageContainer(false);
                 userInterfaceUtils.resetTrainingImageGridCells();
@@ -299,7 +316,8 @@ $(document).ready(function(){
 
             this._requestAIServerOnSuccessHandler = function(response){
                 // console.log(response);
-                this._loadTiffImage(response.output_soft);
+                this._setAiServerResponse(response);
+                this.loadTiffImage();
             };
 
             this._requestAIServerOnErrorHandler = function(error){
@@ -307,22 +325,27 @@ $(document).ready(function(){
                 userInterfaceUtils.showRequestFailedAlert();
             };
 
-            this._loadTiffImage = function(imageSrcPath){
-                var xhr = new XMLHttpRequest();
-                xhr.open('GET', imageSrcPath);
-                xhr.responseType = 'arraybuffer';
-                xhr.onload = function (e) {
-                    var buffer = xhr.response;
-                    var tiff = new Tiff({buffer: buffer});
-                    var canvasForTiffImg = tiff.toCanvas();
-                    if (canvasForTiffImg) {
-                        let imageData = canvasForTiffImg.toDataURL();
-                        userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
-                        userInterfaceUtils.toggleLoadingIndicator(false);
-                        userInterfaceUtils.populateTrainingImage(imageData);
-                    }
-                };
-                xhr.send();
+            this.loadTiffImage = function(){
+                if(this.aiServerResponse && this.lockForSelectedArea){
+                    let outputType = this.landcoverImageOutputType;
+                    let imageSrcPath = this.aiServerResponse[outputType];
+    
+                    let xhr = new XMLHttpRequest();
+                    xhr.open('GET', imageSrcPath);
+                    xhr.responseType = 'arraybuffer';
+                    xhr.onload = function (e) {
+                        var buffer = xhr.response;
+                        var tiff = new Tiff({buffer: buffer});
+                        var canvasForTiffImg = tiff.toCanvas();
+                        if (canvasForTiffImg) {
+                            let imageData = canvasForTiffImg.toDataURL();
+                            userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
+                            userInterfaceUtils.toggleLoadingIndicator(false);
+                            userInterfaceUtils.populateTrainingImage(imageData);
+                        }
+                    };
+                    xhr.send();
+                } 
             }
 
             this._exportNAIPImageForSelectedArea = function(inputExtent){
@@ -498,6 +521,7 @@ $(document).ready(function(){
             const $zoomInBtn = $('.js-zoom-in');
             const $zoomOutBtn = $('.js-zoom-out');
             const $flyToRandomLocationBtn = $('.js-fly-to-random-location');
+            const $selectOutputTypeBtn = $('.js-select-output-type-btn');
 
             this.canvasForTiffImgSideLength = 0;
 
@@ -515,6 +539,7 @@ $(document).ready(function(){
                 $zoomInBtn.on('click', zoomInBtnOnClickHandler);
                 $zoomOutBtn.on('click', zoomOutBtnOnClickHandler);
                 $flyToRandomLocationBtn.on('click', flyToRandomLocationBtnOnClickHandler);
+                $selectOutputTypeBtn.on('click', selectOutputTypeBtnOnClickHandler);
 
                 function trainingImageGridCellOnClickHandler(evt){
                     let targetGridCell = $(this);
@@ -522,7 +547,6 @@ $(document).ready(function(){
                     targetGridCell.addClass('active');
                     targetGridCell.siblings().removeClass('active');
                     self._getTrainingImageTile(targetCellIndex).then(imageTileDataURL=>{
-                        // console.log(imageTileDataURL);
                         landcoverApp.addImageToLandcoverMapImageLayer(imageTileDataURL);
                         self.toggleTileSelectionControlPanel(true);
                     });
@@ -562,6 +586,16 @@ $(document).ready(function(){
 
                 function zoomOutBtnOnClickHandler(evt){
                     landcoverApp.zoomOut();
+                }
+
+                function selectOutputTypeBtnOnClickHandler(evt){
+                    let targetBtn = $(this);
+                    let targetBtnLabel = targetBtn.text();
+                    targetBtn.siblings().removeClass('is-active');
+                    targetBtn.addClass('is-active');
+
+                    landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[targetBtnLabel]);
+                    landcoverApp.loadTiffImage();
                 }
             };
 
@@ -612,7 +646,7 @@ $(document).ready(function(){
             this.populateTileFromActiveGridCellToMap = function(){
                 let isActiveGridCell = $('.grid-cell').hasClass('active');
                 if(isActiveGridCell){
-                    $('.grid-cell').find('active').trigger('click');
+                    $('.grid-cell.active').trigger('click');
                 } else {
                     $('.grid-cell:eq(0)').trigger('click'); // add the first tile from the training image to the map
                 }

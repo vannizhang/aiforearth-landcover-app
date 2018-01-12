@@ -15,7 +15,12 @@
         <div id="opacity-slider-container" class=''>
             <input id="opacity-slider" type="range" min="0" max="10" value="5" >
         </div>
-        <div id='animation-btns-container'></div>
+        <div id='output-types-btns-container'>
+            <nav class="breadcrumbs mouse-pointer margin-right-quarter right">
+                <a class="crumb js-select-output-type-btn is-active">classified</a>
+                <a class="crumb js-select-output-type-btn">confidence</a>
+            </nav>
+        </div>
         <div id='close-tile-selection-btn' class='text-center'><span class='icon-ui-close font-size--2'></span></div>
     </div>
 
@@ -50,8 +55,11 @@
                 <div class='inline-block'>
                     <span class='font-size--3'>Choose a best fit</span>
                 </div>
-                <div class='inline-block right hide'>
-                    <span>slider</span>
+                <div class='inline-block font-size--3 right'>
+                    <nav class="breadcrumbs mouse-pointer">
+                        <a class="crumb js-select-output-type-btn is-active">classified</a>
+                        <a class="crumb js-select-output-type-btn">confidence</a>
+                    </nav>
                 </div>
             </div>
 
