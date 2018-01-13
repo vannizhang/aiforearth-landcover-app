@@ -25,32 +25,31 @@ $(document).ready(function(){
     dojo.require("esri/layers/MapImageLayer");
     dojo.require("esri/layers/MapImage");
 
+    dojo.require("esri.arcgis.OAuthInfo");
+    dojo.require("esri.IdentityManager");
+    dojo.require("esri.arcgis.Portal");
+
     dojo.ready(dojoOnReadyHandler); 
     
     function dojoOnReadyHandler() {  
 
         // app config data
         const WEB_MAP_ID = "0a5a934c55594e209d1e6f5cde00bae2";
+        const OAUTH_APP_ID = 'NQgZFGVs4UkjeP22';
         const MAP_CONTAINER_ID = 'mapDiv';
-        // const MS_AZURE_SERVER_URL = "http://vm-land-arcgis1.eastus.cloudapp.azure.com";
-        // const LANDCOVER_PROCESSING_SERVICE_URL ="http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml";
-
-        const LANDCOVER_PROCESSING_SERVICE_URL ="http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml";
         const LANDCOVER_PROCESSING_SERVICE_URLS = [
             "http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml",
             "http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml"
         ];
-
-        const LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
-        const AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer'; 
-
         const LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP = {
             "classified": "output_hard",
             "confidence": "output_soft"
         };
         const DEFAULT_LANDCOVER_IMAGE_OUTPUT_TYPE = LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP["classified"];
+        const LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
+        const AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer'; 
 
-        // app variables
+        // app core modules
         let landcoverApp = null;
         let userInterfaceUtils = null;
 
@@ -63,9 +62,6 @@ $(document).ready(function(){
 
         // initiate app
         const initApp = (function(){
-            // esri.config.defaults.io.alwaysUseProxy = false;
-            // esri.config.defaults.io.corsEnabledServers.push(MS_AZURE_SERVER_URL);
-
             landcoverApp = new LandcoverApp();
             landcoverApp.startup();
         })();
@@ -81,11 +77,14 @@ $(document).ready(function(){
             this.landcoverImageOutputType = DEFAULT_LANDCOVER_IMAGE_OUTPUT_TYPE; // output_hard or output_soft;
             this.aiServerUrl = null;
             this.aiServerResponse = null;
+
+            this.portalUser = null;
             
             this.symbolForSquareAreaReferenceGraphic = null;
             this.symbolForSquareAreaHighlightGraphic = null;
             
             this.startup = function(){
+                this._signInToArcGISPortal(OAUTH_APP_ID);
                 esri.arcgis.utils.createMap(WEB_MAP_ID, MAP_CONTAINER_ID).then(response=>{
                     // console.log(response);
                     let map = response.map;
@@ -113,6 +112,10 @@ $(document).ready(function(){
 
             this._setAiServerResponse = function(response){
                 this.aiServerResponse = response;
+            };
+
+            this._setPortalUser = function(portalUser){
+                this.portalUser = portalUser;
             };
 
             this._setExtentForSelectedArea = function(extent){
@@ -508,12 +511,35 @@ $(document).ready(function(){
                 }
             };
 
+            this._signInToArcGISPortal = function(OAuthAppID){
+                let info = new esri.arcgis.OAuthInfo({
+                    appId: OAuthAppID,
+                    popup: false
+                });
+                esri.id.registerOAuthInfos([info]);
+        
+                new esri.arcgis.Portal(info.portalUrl)
+                .signIn()
+                .then(portalUser=>{
+                    this._signInSuccessHandler(portalUser);
+                })     
+                .otherwise(
+                    function (error){
+                        console.log("Error occurred while signing in: ", error);
+                    }
+                );  
+            };
+
+            this._signInSuccessHandler = function(portalUser){
+                console.log('signed in as ' + portalUser.username);
+                this._setPortalUser(portalUser);
+            };
         }
 
         function UserInterfaceUtils(){
 
             const NUM_OF_GRID_CELLS = 16;
-            const ALERT_DISPALY_TIME = 6000; // in ms
+            const ALERT_DISPALY_TIME = 8000; // in ms
             
             // cache DOM nodes
             const $body = $('body');
