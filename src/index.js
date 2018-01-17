@@ -48,6 +48,11 @@ $(document).ready(function(){
         const DEFAULT_LANDCOVER_IMAGE_OUTPUT_TYPE = LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP["classified"];
         const LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
         const AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer'; 
+        
+        // config data for training results table 
+        const TRAINING_RESULTS_TABLE_URL = 'https://services6.arcgis.com/TAVvcHO9Uf3mGozE/arcgis/rest/services/aiforearth_landcover_app_training_results/FeatureServer/0';
+        const FIELD_NAME_OBJECTID = 'FID';
+
 
         // app core modules
         let landcoverApp = null;
@@ -77,6 +82,8 @@ $(document).ready(function(){
             this.landcoverImageOutputType = DEFAULT_LANDCOVER_IMAGE_OUTPUT_TYPE; // output_hard or output_soft;
             this.aiServerUrl = null;
             this.aiServerResponse = null;
+            this.locationNameForSelectedArea = '';
+            this.uniqueIDForSelectedArea = ''; // this value will be used to choose between addFeature vs editFeature when user click the "teach the machine" btn
 
             this.portalUser = null;
             
@@ -118,12 +125,25 @@ $(document).ready(function(){
                 this.portalUser = portalUser;
             };
 
+            this._setLocationNameForSelectedArea = function(locationName=''){
+                this.locationNameForSelectedArea = locationName;
+            };
+
+            this._setUniqueIdForSelectedArea = function(uniqueID){
+                this.uniqueIDForSelectedArea = uniqueID;
+            }
+
             this._setExtentForSelectedArea = function(extent){
                 this.extentForSelectedArea = extent;
                 if(extent){
                     userInterfaceUtils.updateTileSelectionCtrlPanelPosition();
                 }
-            }
+            };
+
+            this._getCenterPointOfSelectedAreaExtent = function(){
+                let centerPt = (this.extentForSelectedArea) ? this.extentForSelectedArea.getCenter() : null;
+                return centerPt;
+            };
 
             this._getShiftValues = function(){
                 let shifts = this.shiftValues.map(d=>{return d});
@@ -136,6 +156,33 @@ $(document).ready(function(){
 
             this.setLandcoverImageOutputType = function(outputType){
                 this.landcoverImageOutputType = outputType;
+            }
+
+            // the main function to start selecting/processing an area
+            this.selectAreaByPoint = function(point, uniqueID){
+                uniqueID = uniqueID || this._getUniqueID();
+
+                if(!point) {
+                    console.error('a point geometry is required');
+                    return;
+                } else {
+                    // reset selected area before start selecting new area
+                    this.resetSeletcedArea();
+
+                    let areaSelectHighlightGraphic = this._getSquareAreaGraphic(point);
+                    let sqExtent = this._getSquareExtentByMapPoint(point);
+
+                    this._setUniqueIdForSelectedArea(uniqueID);
+                    this._setExtentForSelectedArea(sqExtent);
+                    this._setAreaSelectLayer(areaSelectHighlightGraphic);
+                    this._getLandcoverImgForSelectedArea(sqExtent);
+                    this._reverseGeocode(point).then(result=>{
+                        this._setLocationNameForSelectedArea(result);
+                    });
+    
+                    // lock selected area to prevent selecting another area while processing and reviewing lan cover image for the current area
+                    this.toggleLockForSelectedArea(true); 
+                }
             }
 
             // call this function to set and reset the shiftValues
@@ -229,26 +276,18 @@ $(document).ready(function(){
                 });
             };
 
-            // show area select highlight layer on click
             this._mapOnClickHandler = function(evt){    
-                //console.log(evt);
+                // console.log(evt.mapPoint);
                 if(!this.lockForSelectedArea){
-                    this.resetSeletcedArea();
-                    let areaSelectHighlightGraphic = this._getSquareAreaGraphic(evt);
-                    let sqExtent = this._getSquareExtentByMapPoint(evt.mapPoint);
-                    this._setExtentForSelectedArea(sqExtent);
-                    this._updateAreaSelectLayer(areaSelectHighlightGraphic);
-                    this._getLandcoverImgForSelectedArea(sqExtent);
+                    this.selectAreaByPoint(evt.mapPoint);
                 } 
-                // lock selected area to prevent selecting another area while processing and reviewing lan cover image for the current area
-                this.toggleLockForSelectedArea(true); 
             };
 
             // show area select reference layer on mousemove
             this._mapOnMousemoveHandler = function(evt){
                 // console.log(evt);
                 if(!this.lockForSelectedArea){
-                    let sqAreaReferenceGraphic = this._getSquareAreaGraphic(evt);
+                    let sqAreaReferenceGraphic = this._getSquareAreaGraphic(evt.mapPoint, evt.type);
                     this.map.graphics.clear();
                     this.map.graphics.add(sqAreaReferenceGraphic);    
                 } else {
@@ -274,11 +313,16 @@ $(document).ready(function(){
                 this.toggleNAIPLayer(true);
             }
 
+            
             this.resetSeletcedArea = function(){
+                // Do not call toggleLockForSelectedArea in this function
                 this._clearLandcoverMapImage();
                 this._setExtentForSelectedArea(null);
-                this._updateAreaSelectLayer(null);
+                this._setAreaSelectLayer(null);
                 this._setAiServerResponse(null);
+                this._setLocationNameForSelectedArea(null);
+                this._setUniqueIdForSelectedArea(null);
+
                 userInterfaceUtils.toggleTileSelectionControlPanel(false);
                 userInterfaceUtils.toggleTrainingImageContainer(false);
                 userInterfaceUtils.resetTrainingImageGridCells();
@@ -400,7 +444,7 @@ $(document).ready(function(){
             };
 
             // highlight the user selected area
-            this._updateAreaSelectLayer = function(graphicToAdd=null){
+            this._setAreaSelectLayer = function(graphicToAdd=null){
                 let areaSelectGraphicLayer = this.map.getLayer(AREA_SELECT_GRAPHIC_LAYER_ID);
                 areaSelectGraphicLayer.clear();
                 if(graphicToAdd){
@@ -408,10 +452,11 @@ $(document).ready(function(){
                 }
             };
 
-            this._getSquareAreaGraphic = function(evt){
+            // eventType values: 'click' or 'mousemove'
+            this._getSquareAreaGraphic = function(mapPoint, eventType='click'){
                 // console.log(evt);
-                let sqExtent = this._getSquareExtentByMapPoint(evt.mapPoint);
-                let symbol = this._getSymbolForSquareAreaGraphicByEventType(evt.type);
+                let sqExtent = this._getSquareExtentByMapPoint(mapPoint);
+                let symbol = this._getSymbolForSquareAreaGraphicByEventType(eventType);
                 let areaSelectGraphic = new esri.Graphic(sqExtent, symbol);
                 return areaSelectGraphic;
             };
@@ -496,6 +541,7 @@ $(document).ready(function(){
 
             this.flyToRandomLocation = function(){
                 this.toggleNAIPLayer(false);
+                this.resetSeletcedArea();
                 let randomCity = this._getRandomCity();
                 let randomLocationPt = new esri.geometry.Point({"x": randomCity.coordinates[1], "y": randomCity.coordinates[0], "spatialReference": {"wkid": 4326 } });
                 this.map.centerAt(randomLocationPt);
@@ -534,6 +580,168 @@ $(document).ready(function(){
                 console.log('signed in as ' + portalUser.username);
                 this._setPortalUser(portalUser);
             };
+
+            this._getFeatureInfoForSelectedArea = function(){
+
+                let switchValue = this._getShiftValues();
+                let creatorUserID = this.portalUser.username;
+                let uniqueID = this.uniqueIDForSelectedArea;
+                let locationName = this.locationNameForSelectedArea;
+                let centerPointOfSelecedArea = this._getCenterPointOfSelectedAreaExtent();
+                let lngLatOfSelectedArea = this._getPointLngLat(centerPointOfSelecedArea);
+
+                return {
+                    "attributes" : {
+                        'unique_id': uniqueID,
+                        'creator': creatorUserID,
+                        'location_name': locationName,
+                        'lat': lngLatOfSelectedArea[1],
+                        'lon': lngLatOfSelectedArea[0],
+                        'water_value': switchValue[0],
+                        'forest_value': switchValue[1],
+                        'field_value': switchValue[2],
+                        'built_value': switchValue[3],
+                    }
+                };
+            };
+
+            // return parameter object will be used to add/edit features
+            this._getParamsToUpdateTrainingResultsFeatures = function(objectIdOfFeatureToEdit){
+                let params = {
+                    f: 'json',
+                    features: []
+                };
+                let featureInfo = this._getFeatureInfoForSelectedArea();
+                if(objectIdOfFeatureToEdit){
+                    featureInfo.attributes[FIELD_NAME_OBJECTID] = objectIdOfFeatureToEdit;
+                }
+                params.features.push(JSON.stringify(featureInfo));
+                return params;
+            };
+
+            this._manageTrainingResultsTableFeatures = function(isAddingNewFeature, objectIdOfFeatureToEdit=null){
+                let operationName = isAddingNewFeature ? 'addFeatures' : 'updateFeatures';
+                let params = this._getParamsToUpdateTrainingResultsFeatures(objectIdOfFeatureToEdit);
+                let rquest = esri.request({
+                    url: TRAINING_RESULTS_TABLE_URL + '/' + operationName,
+                    content: params,
+                    callbackParamName: "callback"
+                }, {
+                    usePost: true,
+                });
+
+                function requestSuccessHandler(response) {
+                    console.log(response);
+                }
+        
+                function requestErrorHandler(error) {
+                    console.error("Error: ", error.message);
+                }
+                
+                rquest.then(requestSuccessHandler, requestErrorHandler);
+            }
+
+            this.queryTrainingResultsTable = function(whereClause){
+                let deferred = $.Deferred();
+
+                let params = {
+                    f: 'json',
+                    outFields: '*',
+                    where: whereClause
+                };
+                let queryFeaturesRequest = esri.request({
+                    url: TRAINING_RESULTS_TABLE_URL + '/query ',
+                    content: params,
+                    callbackParamName: "callback"
+                }, {
+                    usePost: true,
+                });
+
+                function requestSuccessHandler(response) {
+                    // console.log(response);
+                    deferred.resolve(response);
+                }
+        
+                function requestErrorHandler(error) {
+                    console.error("Error: ", error.message);
+                    deferred.resolve(error);
+                }
+    
+                queryFeaturesRequest.then(requestSuccessHandler, requestErrorHandler);
+                return deferred.promise();
+            };
+
+            this._addFeatureToTrainingResultsTable = function(){
+                this._manageTrainingResultsTableFeatures(true);
+            };
+
+            this._editTrainingResultsTable = function(objectIdOfFeatureToEdit){
+                this._manageTrainingResultsTableFeatures(false, objectIdOfFeatureToEdit);
+            };
+
+            this.updateTrainingResultsTable = function(){
+                if(this.uniqueIDForSelectedArea && this.lockForSelectedArea){
+                    let whereClause = `unique_id = '${this.uniqueIDForSelectedArea}'`;
+                    // get count of features by unique id, if count is 0, add a new feature, otherwise, edit the existing feature
+                    this.queryTrainingResultsTable(whereClause).then(response=>{
+                        if(!response.features.length) {
+                            this._addFeatureToTrainingResultsTable();
+                        } else {
+                            // edit existing feature
+                            let existingFeatureFID = response.features[0].attributes[FIELD_NAME_OBJECTID];
+                            this._editTrainingResultsTable(existingFeatureFID);
+                            // console.log('edit exiting feature', objectID);
+                        }
+                    });
+                } else {
+                    console.error('no land cover classification data to teach the machine');
+                }
+            };
+
+            this._getPointLngLat = function(point){
+                return esri.geometry.xyToLngLat(point.x, point.y);
+            }
+
+            this._getUniqueID = function(){
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            };
+
+            this._reverseGeocode = function(point){
+                const REVERSE_GEOCODE_URL = 'http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode';
+                let deferred = $.Deferred();
+                let pointGeomJson = point.toJson();
+                let locationName = '';
+                let params = {
+                    f: 'json',
+                    location: JSON.stringify(pointGeomJson)
+                };
+
+                let reverseGeocodeRequest = esri.request({
+                    url: REVERSE_GEOCODE_URL,
+                    content: params,
+                    callbackParamName: "callback"
+                });
+
+                function requestSuccessHandler(response) {
+                    // console.log(response);
+                    if(response.address){
+                        locationName = response.address.Match_addr;
+                        deferred.resolve(locationName);
+                    }
+                }
+        
+                function requestErrorHandler(error) {
+                    console.log("Error: ", error.message);
+                    deferred.resolve(locationName);
+                }
+                
+                reverseGeocodeRequest.then(requestSuccessHandler, requestErrorHandler);
+
+                return deferred.promise();
+            };
         }
 
         function UserInterfaceUtils(){
@@ -558,6 +766,7 @@ $(document).ready(function(){
             const $swicthServiceBtn = $('.js-switch-ldhandler-service-url');
             const $flyToRandomLocationBtn = $('.js-fly-to-random-location');
             const $selectOutputTypeBtn = $('.js-select-output-type-btn');
+            const $submitTrainingDataBtn = $('.js-submit-training-data');
 
             this.canvasForTiffImgSideLength = 0;
 
@@ -575,6 +784,7 @@ $(document).ready(function(){
                 $swicthServiceBtn.on('click', swicthServiceBtnOnClickHandler);
                 $flyToRandomLocationBtn.on('click', flyToRandomLocationBtnOnClickHandler);
                 $selectOutputTypeBtn.on('click', selectOutputTypeBtnOnClickHandler);
+                $submitTrainingDataBtn.on('click', submitTrainingDataBtnOnClickHandler);
 
                 function trainingImageGridCellOnClickHandler(evt){
                     let targetGridCell = $(this);
@@ -611,7 +821,6 @@ $(document).ready(function(){
                 }
 
                 function flyToRandomLocationBtnOnClickHandler(evt){
-                    landcoverApp.resetSeletcedArea();
                     landcoverApp.flyToRandomLocation();
                 }
 
@@ -632,6 +841,10 @@ $(document).ready(function(){
 
                     landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[outputType]);
                     landcoverApp.loadTiffImage();
+                }
+
+                function submitTrainingDataBtnOnClickHandler(evt){
+                    landcoverApp.updateTrainingResultsTable();
                 }
             };
 
