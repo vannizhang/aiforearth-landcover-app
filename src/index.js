@@ -48,6 +48,7 @@ $(document).ready(function(){
         const DEFAULT_LANDCOVER_IMAGE_OUTPUT_TYPE = LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP["classified"];
         const LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
         const AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer'; 
+        const REVERSE_GEOCODE_URL = 'http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode';
         
         // config data for training results table 
         const TRAINING_RESULTS_TABLE_URL = 'https://services6.arcgis.com/TAVvcHO9Uf3mGozE/arcgis/rest/services/aiforearth_landcover_app_training_results/FeatureServer/0';
@@ -437,24 +438,10 @@ $(document).ready(function(){
                 let deferred = $.Deferred();
                 let requestURL = this.NAIPImageServerURL + "/exportImage";
                 let requestParams = this._getParamsToExportImageFromNAIPLayer(inputExtent);
-                let layersRequest = esri.request({
-                    url: requestURL,
-                    content: requestParams,
-                    handleAs: "json",
-                    callbackParamName: "callback"
-                }, {
-                    useProxy: false,
-                    usePost: true
-                });
-                let reuqestOnSuccessHandler = function(response){
-                    // console.log("Success: ", response);
+
+                this._makeRestApiRequest(requestURL, requestParams).then(response=>{
                     deferred.resolve(response);
-                };
-                let reuqestOnErrorHandler = function(response){
-                    // console.log("Error: ", error.message);
-                    deferred.resolve({"error": error.message});
-                }; 
-                layersRequest.then(reuqestOnSuccessHandler, reuqestOnErrorHandler);
+                });
                 return deferred.promise();
             };
 
@@ -648,62 +635,49 @@ $(document).ready(function(){
             this._manageTrainingResultsTableFeatures = function(isAddingNewFeature, objectIdOfFeatureToEdit=null){
                 let self = this;
                 let operationName = isAddingNewFeature ? 'addFeatures' : 'updateFeatures';
+                let requestURL = TRAINING_RESULTS_TABLE_URL + '/' + operationName;
                 let params = this._getParamsToUpdateTrainingResultsFeatures(objectIdOfFeatureToEdit);
-                let rquest = esri.request({
-                    url: TRAINING_RESULTS_TABLE_URL + '/' + operationName,
-                    content: params,
-                    callbackParamName: "callback"
-                }, {
-                    usePost: true,
+
+                this._makeRestApiRequest(requestURL, params).then(response=>{
+                    if(!response.error){
+                        if(isAddingNewFeature){
+                            onAddResultsSuccessHandler(response);
+                        } else {
+                            onUpdateResultsSuccessHandler(response);
+                        }
+                    }
                 });
 
-                function requestSuccessHandler(response) {
-                    // console.log(response);
-                    if( response.addResults.length && response.addResults[0].success){
-                        if(isAddingNewFeature){
-                            let featureFID = response.addResults[0].objectId;
-                            self._uploadLandcoverImage(featureFID);
-                            self._uploadSelectedNAIPImage(featureFID);
-                        }
-                    } else {
-                        console.error('failed adding/editing feature in training results table');
-                    }
+                function onAddResultsSuccessHandler(response){
+                    let featureFID = ( response.addResults.length && response.addResults[0].success) ? response.addResults[0].objectId : null;
+                    // self._uploadLandcoverImage(featureFID);
+                    console.log('successfully added new feature to training result table');
                 }
-        
-                function requestErrorHandler(error) {
-                    console.error("Error: ", error.message);
+
+                function onUpdateResultsSuccessHandler(response){
+                    let featureFID = ( response.updateResults.length && response.updateResults[0].success) ? response.updateResults[0].objectId : null;
+                    console.log(`successfully updated feature (objectID: ${featureFID}) in training result table`);
+                    // self._deleteAttachments(featureFID).then(res=>{
+                    //     if(!res.error){
+                    //         self._uploadLandcoverImage(featureFID);
+                    //     } 
+                    // });
                 }
-                
-                rquest.then(requestSuccessHandler, requestErrorHandler);
             }
 
             this.queryTrainingResultsTable = function(whereClause){
                 let deferred = $.Deferred();
-
+                let requestURL = TRAINING_RESULTS_TABLE_URL + '/query ';
                 let params = {
                     f: 'json',
                     outFields: '*',
                     where: whereClause
                 };
-                let queryFeaturesRequest = esri.request({
-                    url: TRAINING_RESULTS_TABLE_URL + '/query ',
-                    content: params,
-                    callbackParamName: "callback"
-                }, {
-                    usePost: true,
+
+                this._makeRestApiRequest(requestURL, params).then(response=>{
+                    deferred.resolve(response);
                 });
 
-                function requestSuccessHandler(response) {
-                    // console.log(response);
-                    deferred.resolve(response);
-                }
-        
-                function requestErrorHandler(error) {
-                    console.error("Error: ", error.message);
-                    deferred.resolve(error);
-                }
-    
-                queryFeaturesRequest.then(requestSuccessHandler, requestErrorHandler);
                 return deferred.promise();
             };
 
@@ -737,11 +711,56 @@ $(document).ready(function(){
             this._addAttachmentToTrainingResultTable = function(featureFID, formData){
                 let deferred = $.Deferred();
                 let requestURL = TRAINING_RESULTS_TABLE_URL + `/${featureFID}/addAttachment`;
-
                 let params = {
                     f: 'json',
                 };
-                let addAttachmentRequest = esri.request({
+                this._makeRestApiRequest(requestURL, params, formData).then(response=>{
+                    deferred.resolve(response);
+                });
+                return deferred.promise();
+            };
+
+            this._deleteAttachments = function(featureFID){
+                let deferred = $.Deferred();
+                let requestURL = TRAINING_RESULTS_TABLE_URL + `/${featureFID}/deleteAttachments`;
+                let params = {
+                    f: 'json',
+                };
+                this._makeRestApiRequest(requestURL, params).then(response=>{
+                    deferred.resolve(response);
+                });
+                return deferred.promise();
+            };
+
+            this._uploadLandcoverImage = function(featureFID){
+                let imageData = this._getImageHrefFromLandcoverMapImageLayer();
+                let formData = this._getAttachmentFormDataFromImageHref(imageData, 'landcover.png');
+                this._addAttachmentToTrainingResultTable(featureFID, formData).then(res=>{
+                    // console.log(res);
+                    this._uploadSelectedNAIPImage(featureFID);
+                });
+            };
+
+            this._uploadSelectedNAIPImage = function(featureFID){
+                let imageHref = this.exportedNAIPImageHerf;
+                let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
+                    let imageData = canvasForTiffImg.toDataURL();
+                    let formData = this._getAttachmentFormDataFromImageHref(imageData, 'naip.png');
+                    this._addAttachmentToTrainingResultTable(featureFID, formData).then(res=>{
+                        console.log(res);
+                    });
+                };
+                this._getCanvasForTiff(imageHref, canvasForTiffImgOnloadHandler);
+            };
+
+            this._makeRestApiRequest = function(requestURL, params, formData=null){
+                if(!requestURL){
+                    console.error('requestURL is reqired');
+                }
+                params = params || { f: 'json' };
+
+                let deferred = $.Deferred();
+                let restApiRequest = esri.request({
                     url: requestURL,
                     content: params,
                     form: formData,
@@ -756,32 +775,12 @@ $(document).ready(function(){
                 }
         
                 function requestErrorHandler(error) {
-                    console.error("Error: ", error.message);
+                    // console.error("Error: ", error);
                     deferred.resolve(error);
                 }
     
-                addAttachmentRequest.then(requestSuccessHandler, requestErrorHandler);
+                restApiRequest.then(requestSuccessHandler, requestErrorHandler);
                 return deferred.promise();
-            };
-
-            this._uploadLandcoverImage = function(featureFID){
-                let imageData = this._getImageHrefFromLandcoverMapImageLayer();
-                let formData = this.__getAttachmentFormDataFromImageHref(imageData, 'landcover.png');
-                this._addAttachmentToTrainingResultTable(featureFID, formData).then(res=>{
-                    console.log(res);
-                });
-            };
-
-            this._uploadSelectedNAIPImage = function(featureFID){
-                let imageHref = this.exportedNAIPImageHerf;
-                let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
-                    let imageData = canvasForTiffImg.toDataURL();
-                    let formData = this._getAttachmentFormDataFromImageHref(imageData, 'naip.png');
-                    this._addAttachmentToTrainingResultTable(featureFID, formData).then(res=>{
-                        console.log(res);
-                    });
-                };
-                this._getCanvasForTiff(imageHref, canvasForTiffImgOnloadHandler);
             };
 
             this._getAttachmentFormDataFromImageHref = function(imageData, imageName){
@@ -827,36 +826,21 @@ $(document).ready(function(){
                 return blob;
             };
 
-            this._reverseGeocode = function(point){
-                const REVERSE_GEOCODE_URL = 'http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode';
+            this._reverseGeocode = function(point, callback){
                 let deferred = $.Deferred();
-                let pointGeomJson = point.toJson();
                 let locationName = '';
+                let pointGeomJson = point.toJson();
                 let params = {
                     f: 'json',
                     location: JSON.stringify(pointGeomJson)
                 };
 
-                let reverseGeocodeRequest = esri.request({
-                    url: REVERSE_GEOCODE_URL,
-                    content: params,
-                    callbackParamName: "callback"
-                });
-
-                function requestSuccessHandler(response) {
-                    // console.log(response);
-                    if(response.address){
-                        locationName = response.address.Match_addr;
+                this._makeRestApiRequest(REVERSE_GEOCODE_URL, params).then(res=>{
+                    if(!res.error){
+                        locationName = res.address.City + ', ' + res.address.Region + ' ' + res.address.Postal;
                         deferred.resolve(locationName);
                     }
-                }
-        
-                function requestErrorHandler(error) {
-                    console.log("Error: ", error.message);
-                    deferred.resolve(locationName);
-                }
-                
-                reverseGeocodeRequest.then(requestSuccessHandler, requestErrorHandler);
+                });
 
                 return deferred.promise();
             };
