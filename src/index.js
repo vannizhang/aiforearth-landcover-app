@@ -52,7 +52,15 @@ $(document).ready(function(){
         // config data for training results table 
         const TRAINING_RESULTS_TABLE_URL = 'https://services6.arcgis.com/TAVvcHO9Uf3mGozE/arcgis/rest/services/aiforearth_landcover_app_training_results/FeatureServer/0';
         const FIELD_NAME_OBJECTID = 'FID';
-
+        const FIELD_NAME_UNIQUEID = 'unique_id';
+        const FIELD_NAME_CREATOR = 'creator';
+        const FIELD_NAME_LOCATION_NAME = 'location_name';
+        const FIELD_NAME_LAT = 'lat';
+        const FIELD_NAME_LON = 'lon';
+        const FIELD_NAME_WATER = 'water_value';
+        const FIELD_NAME_FOREST = 'forest_value';
+        const FIELD_NAME_FIELD = 'field_value';
+        const FIELD_NAME_BUILT = 'built_value';
 
         // app core modules
         let landcoverApp = null;
@@ -84,6 +92,7 @@ $(document).ready(function(){
             this.aiServerResponse = null;
             this.locationNameForSelectedArea = '';
             this.uniqueIDForSelectedArea = ''; // this value will be used to choose between addFeature vs editFeature when user click the "teach the machine" btn
+            this.exportedNAIPImageHerf = '';
 
             this.portalUser = null;
             
@@ -138,6 +147,10 @@ $(document).ready(function(){
                 if(extent){
                     userInterfaceUtils.updateTileSelectionCtrlPanelPosition();
                 }
+            };
+
+            this._setExportedNAIPImageHerf = function(href=''){
+                this.exportedNAIPImageHerf = href;
             };
 
             this._getCenterPointOfSelectedAreaExtent = function(){
@@ -240,17 +253,24 @@ $(document).ready(function(){
                 // this.setOpcityForLandcoverMapImageLayer(opacityVal);
                 mapImageLayer.removeAllImages();
                 mapImageLayer.addImage(mapImage);
-            }
+            };
+
+            this._getImageHrefFromLandcoverMapImageLayer = function(){
+                let mapImageLayer = this.map.getLayer(LANDCOVER_MAP_IMAGE_LAYER_ID);
+                let images = mapImageLayer.getImages();
+                let href = images.length ? images[0].href : null;
+                return href;
+            };
 
             this.setOpcityForLandcoverMapImageLayer = function(value){
                 let mapImageLayer = this.map.getLayer(LANDCOVER_MAP_IMAGE_LAYER_ID);
                 mapImageLayer.setOpacity(value);
-            }
+            };
 
             this._clearLandcoverMapImage = function(){
                 let mapImageLayer = this.map.getLayer(LANDCOVER_MAP_IMAGE_LAYER_ID);
                 mapImageLayer.removeAllImages();
-            }
+            };
 
             this._setMapEventHandlers = function(map){
                 map.on('click', evt=>{
@@ -322,6 +342,7 @@ $(document).ready(function(){
                 this._setAiServerResponse(null);
                 this._setLocationNameForSelectedArea(null);
                 this._setUniqueIdForSelectedArea(null);
+                this._setExportedNAIPImageHerf(null);
 
                 userInterfaceUtils.toggleTileSelectionControlPanel(false);
                 userInterfaceUtils.toggleTrainingImageContainer(false);
@@ -335,16 +356,16 @@ $(document).ready(function(){
 
                 this._exportNAIPImageForSelectedArea(sqExtent).then(response=>{
                     if(response.error){
-                        console.error("error when export NAIP image", response.error);
+                        // console.error("error when export NAIP image", response.error);
                         userInterfaceUtils.showRequestFailedAlert();
                         return;
                     } else {
                         // console.log("Successfully export the NAIP Image ", response);
                         let params = this._getParamsToRequestAIServer(response);
                         this._requestAIServer(params);
+                        this._setExportedNAIPImageHerf(response.href);
                     }
                 });
-                // this._addImageToLandcoverMapImageLayer(tempImageToTest, sqExtent);
             };
 
             this._getParamsToRequestAIServer = function(exportedNAIPImageResponse){
@@ -375,7 +396,7 @@ $(document).ready(function(){
             this._requestAIServerOnSuccessHandler = function(response){
                 // console.log(response);
                 this._setAiServerResponse(response);
-                this.loadTiffImage();
+                this.populateOutputTiffImageFromAiServer();
             };
 
             this._requestAIServerOnErrorHandler = function(error){
@@ -383,28 +404,34 @@ $(document).ready(function(){
                 userInterfaceUtils.showRequestFailedAlert();
             };
 
-            this.loadTiffImage = function(){
+            this.populateOutputTiffImageFromAiServer = function(){
                 if(this.aiServerResponse && this.lockForSelectedArea){
                     let outputType = this.landcoverImageOutputType;
                     let imageSrcPath = this.aiServerResponse[outputType];
-    
-                    let xhr = new XMLHttpRequest();
-                    xhr.open('GET', imageSrcPath);
-                    xhr.responseType = 'arraybuffer';
-                    xhr.onload = function (e) {
-                        var buffer = xhr.response;
-                        var tiff = new Tiff({buffer: buffer});
-                        var canvasForTiffImg = tiff.toCanvas();
-                        if (canvasForTiffImg) {
-                            let imageData = canvasForTiffImg.toDataURL();
-                            userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
-                            userInterfaceUtils.toggleLoadingIndicator(false);
-                            userInterfaceUtils.populateTrainingImage(imageData);
-                        }
+                    let canvasForTiffImgOnloadHandler = function(canvasForTiffImg){
+                        let imageData = canvasForTiffImg.toDataURL();
+                        userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
+                        userInterfaceUtils.toggleLoadingIndicator(false);
+                        userInterfaceUtils.populateTrainingImage(imageData);
                     };
-                    xhr.send();
+                    this._getCanvasForTiff(imageSrcPath, canvasForTiffImgOnloadHandler);
                 } 
-            }
+            };
+
+            this._getCanvasForTiff = function(imageSrcPath, callback){
+                let xhr = new XMLHttpRequest();
+                xhr.open('GET', imageSrcPath);
+                xhr.responseType = 'arraybuffer';
+                xhr.onload = function (e) {
+                    var buffer = xhr.response;
+                    var tiff = new Tiff({buffer: buffer});
+                    var canvasForTiffImg = tiff.toCanvas();
+                    if (canvasForTiffImg) {
+                        callback(canvasForTiffImg);
+                    }
+                };
+                xhr.send();
+            };
 
             this._exportNAIPImageForSelectedArea = function(inputExtent){
                 let deferred = $.Deferred();
@@ -590,19 +617,18 @@ $(document).ready(function(){
                 let centerPointOfSelecedArea = this._getCenterPointOfSelectedAreaExtent();
                 let lngLatOfSelectedArea = this._getPointLngLat(centerPointOfSelecedArea);
 
-                return {
-                    "attributes" : {
-                        'unique_id': uniqueID,
-                        'creator': creatorUserID,
-                        'location_name': locationName,
-                        'lat': lngLatOfSelectedArea[1],
-                        'lon': lngLatOfSelectedArea[0],
-                        'water_value': switchValue[0],
-                        'forest_value': switchValue[1],
-                        'field_value': switchValue[2],
-                        'built_value': switchValue[3],
-                    }
-                };
+                let featureInfo = { "attributes" : {} };
+                featureInfo.attributes[FIELD_NAME_UNIQUEID] = uniqueID;
+                featureInfo.attributes[FIELD_NAME_CREATOR] = creatorUserID;
+                featureInfo.attributes[FIELD_NAME_LOCATION_NAME] = locationName;
+                featureInfo.attributes[FIELD_NAME_LAT] = lngLatOfSelectedArea[1];
+                featureInfo.attributes[FIELD_NAME_LON] = lngLatOfSelectedArea[0];
+                featureInfo.attributes[FIELD_NAME_WATER] = switchValue[0];
+                featureInfo.attributes[FIELD_NAME_FOREST] = switchValue[1];
+                featureInfo.attributes[FIELD_NAME_FIELD] = switchValue[2];
+                featureInfo.attributes[FIELD_NAME_BUILT] = switchValue[3];
+
+                return featureInfo;
             };
 
             // return parameter object will be used to add/edit features
@@ -620,6 +646,7 @@ $(document).ready(function(){
             };
 
             this._manageTrainingResultsTableFeatures = function(isAddingNewFeature, objectIdOfFeatureToEdit=null){
+                let self = this;
                 let operationName = isAddingNewFeature ? 'addFeatures' : 'updateFeatures';
                 let params = this._getParamsToUpdateTrainingResultsFeatures(objectIdOfFeatureToEdit);
                 let rquest = esri.request({
@@ -631,7 +658,16 @@ $(document).ready(function(){
                 });
 
                 function requestSuccessHandler(response) {
-                    console.log(response);
+                    // console.log(response);
+                    if( response.addResults.length && response.addResults[0].success){
+                        if(isAddingNewFeature){
+                            let featureFID = response.addResults[0].objectId;
+                            self._uploadLandcoverImage(featureFID);
+                            self._uploadSelectedNAIPImage(featureFID);
+                        }
+                    } else {
+                        console.error('failed adding/editing feature in training results table');
+                    }
                 }
         
                 function requestErrorHandler(error) {
@@ -698,6 +734,64 @@ $(document).ready(function(){
                 }
             };
 
+            this._addAttachmentToTrainingResultTable = function(featureFID, formData){
+                let deferred = $.Deferred();
+                let requestURL = TRAINING_RESULTS_TABLE_URL + `/${featureFID}/addAttachment`;
+
+                let params = {
+                    f: 'json',
+                };
+                let addAttachmentRequest = esri.request({
+                    url: requestURL,
+                    content: params,
+                    form: formData,
+                    callbackParamName: "callback"
+                }, {
+                    usePost: true,
+                });
+
+                function requestSuccessHandler(response) {
+                    // console.log(response);
+                    deferred.resolve(response);
+                }
+        
+                function requestErrorHandler(error) {
+                    console.error("Error: ", error.message);
+                    deferred.resolve(error);
+                }
+    
+                addAttachmentRequest.then(requestSuccessHandler, requestErrorHandler);
+                return deferred.promise();
+            };
+
+            this._uploadLandcoverImage = function(featureFID){
+                let imageData = this._getImageHrefFromLandcoverMapImageLayer();
+                let formData = this.__getAttachmentFormDataFromImageHref(imageData, 'landcover.png');
+                this._addAttachmentToTrainingResultTable(featureFID, formData).then(res=>{
+                    console.log(res);
+                });
+            };
+
+            this._uploadSelectedNAIPImage = function(featureFID){
+                let imageHref = this.exportedNAIPImageHerf;
+                let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
+                    let imageData = canvasForTiffImg.toDataURL();
+                    let formData = this._getAttachmentFormDataFromImageHref(imageData, 'naip.png');
+                    this._addAttachmentToTrainingResultTable(featureFID, formData).then(res=>{
+                        console.log(res);
+                    });
+                };
+                this._getCanvasForTiff(imageHref, canvasForTiffImgOnloadHandler);
+            };
+
+            this._getAttachmentFormDataFromImageHref = function(imageData, imageName){
+                let b64Data = imageData.split(',')[1];
+                let blob = this._b64toBlob(b64Data, 'image/png'); // create blob object 
+                let formData = new FormData();  
+                formData.append("attachment", blob, imageName);  
+                return formData;
+            }
+
             this._getPointLngLat = function(point){
                 return esri.geometry.xyToLngLat(point.x, point.y);
             }
@@ -707,6 +801,30 @@ $(document).ready(function(){
                     let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
                     return v.toString(16);
                 });
+            };
+
+            this._b64toBlob = function(b64Data, contentType, sliceSize) {
+                contentType = contentType || '';
+                sliceSize = sliceSize || 512;
+              
+                var byteCharacters = atob(b64Data);
+                var byteArrays = [];
+              
+                for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+                    var slice = byteCharacters.slice(offset, offset + sliceSize);
+                
+                    var byteNumbers = new Array(slice.length);
+                    for (var i = 0; i < slice.length; i++) {
+                        byteNumbers[i] = slice.charCodeAt(i);
+                    }
+                
+                    var byteArray = new Uint8Array(byteNumbers);
+                
+                    byteArrays.push(byteArray);
+                }
+              
+                var blob = new Blob(byteArrays, {type: contentType});
+                return blob;
             };
 
             this._reverseGeocode = function(point){
@@ -840,7 +958,7 @@ $(document).ready(function(){
                     $('.js-select-output-type-btn[data-output-type="' + outputType + '"]').addClass('is-active'); // select by output type because we have two sets of js-select-output-type-btn
 
                     landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[outputType]);
-                    landcoverApp.loadTiffImage();
+                    landcoverApp.populateOutputTiffImageFromAiServer();
                 }
 
                 function submitTrainingDataBtnOnClickHandler(evt){
