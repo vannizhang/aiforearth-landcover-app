@@ -11,7 +11,7 @@
     position: absolute;
     top: 0;
     left: 0;
-    right: 0;
+    right: 45px;
     bottom: 0;
     margin: 0;
     padding: 0; 
@@ -20,7 +20,7 @@
 .alert {
     position: absolute;
     bottom: 50px;
-    right: 25px;
+    right: 55px;
 }
 
 /* #mapDiv_zoom_slider {
@@ -91,12 +91,16 @@
 #training-menu-container {
     position: absolute;
     top: 25px;
-    right: 25px;
+    right: 65px;
     width: 350px;
     min-height: 100px;
     background-color: rgba(0,0,0,0.75);
     color: #a9a9a9;
     z-index: 1000;
+}
+
+.training-results-panel-visible #training-menu-container{
+    display: none;
 }
 
 #map-control-items-wrap {
@@ -321,6 +325,81 @@ a.is-active {
 }
 
 /*  END of Styles for Floating Traning Panel */
+
+/* side nav bar style*/
+    #side-nav-bar {
+        position: absolute;
+        width: 45px;
+        height: 100%;
+        right: 0;
+        top: 0;
+        background-color: rgba(0,0,0,0.9);
+    }
+
+    .nav-btn-div {
+        position: absolute;
+        top: 25px;
+        width: 45px;
+        height: 40px;
+        color: #ccc;
+        text-align: center;
+    }
+
+    .nav-btn-div .show-training-results-btn {
+        display: unset;
+    }
+
+    .nav-btn-div .hide-training-results-btn {
+        display: none;
+    }
+
+    .nav-btn-div:before {
+        content: '0';
+        display: block;
+        position: absolute;
+        top: 2px;
+        left: -10px;
+        width: 20px;
+        height: 20px;
+        background-color: #ccc;
+        line-height: 20px;
+        text-align: center;
+        border-radius: 50px;
+        color: #000;
+        border: .5px solid rgba(100,100,100,0.75);
+        font-size: .625rem;
+    }
+
+    .training-results-panel-visible .nav-btn-div .show-training-results-btn {
+        display: none;
+    }
+
+    .training-results-panel-visible .nav-btn-div .hide-training-results-btn {
+        display: unset;
+    }
+
+    .training-results-panel-visible .nav-btn-div:before  {
+        display: none;
+    }
+
+/* end of side nav bar style*/
+
+/* training-results-panel style*/
+    #training-results-panel {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 45px;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.9);
+        display: none;
+        z-index: 1000;
+    }
+
+    .training-results-panel-visible #training-results-panel {
+        display: unset;
+    }
+/* training-results-panel style*/
 
 .font-size--4 {
     font-size: 0.6525rem;

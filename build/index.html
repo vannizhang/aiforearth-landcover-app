@@ -8,8 +8,17 @@
     <link rel="stylesheet" href="https://js.arcgis.com/3.22/esri/css/esri.css">
     <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"> 
   <link href="styles.css" rel="stylesheet"></head>
-  <body>
+  <body class=''>
     <div id='mapDiv'></div>
+
+    <div id='side-nav-bar'>
+        <div class='nav-btn-div text-white'>
+            <span class='show-training-results-btn fa fa-bars font-size-0 margin-left-quarter'></span>
+            <span class='hide-training-results-btn fa fa-times font-size-0'></span>
+        </div>
+    </div>
+
+    <div id='training-results-panel'></div>
 
     <div id='tile-selection-control-panel' class='text-white hide'>
         <div id="opacity-slider-container" class=''>
