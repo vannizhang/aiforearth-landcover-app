@@ -604,13 +604,18 @@ $(document).ready(function(){
                 this._queryTrainingResultsTable(whereClause).then(response=>{
                     if(!response.error){
                         // console.log(response.features);
-                        let objectIds = response.features.map(d=>{
-                            return d.attributes[FIELD_NAME_OBJECTID]
-                        }).join(',');
 
-                        this._queryAttachments(objectIds).then(attachments=>{
-                            console.log(attachments);
-                        });
+                        if(response.features.length){
+                            
+                            let objectIds = response.features.map(d=>{
+                                return d.attributes[FIELD_NAME_OBJECTID]
+                            }).join(',');
+    
+                            this._queryAttachments(objectIds).then(attachments=>{
+                                console.log(attachments);
+                            });
+                        }
+
                     }
                 });
             };
