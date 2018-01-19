@@ -595,6 +595,23 @@ $(document).ready(function(){
             this._signInSuccessHandler = function(portalUser){
                 console.log('signed in as ' + portalUser.username);
                 this._setPortalUser(portalUser);
+                this._getTrainingResultsByUsername(portalUser.username);
+            };
+
+            this._getTrainingResultsByUsername = function(username){
+                let whereClause = `creator = '${username}'`;
+                this._queryTrainingResultsTable(whereClause).then(response=>{
+                    if(!response.error){
+                        // console.log(response.features);
+                        let objectIds = response.features.map(d=>{
+                            return d.attributes[FIELD_NAME_OBJECTID]
+                        }).join(',');
+
+                        this._queryAttachments(objectIds).then(attachments=>{
+                            console.log(attachments);
+                        });
+                    }
+                });
             };
 
             this._getFeatureInfoForSelectedArea = function(){
@@ -667,7 +684,7 @@ $(document).ready(function(){
                 }
             }
 
-            this.queryTrainingResultsTable = function(whereClause){
+            this._queryTrainingResultsTable = function(whereClause){
                 let deferred = $.Deferred();
                 let requestURL = TRAINING_RESULTS_TABLE_URL + '/query ';
                 let params = {
@@ -695,7 +712,7 @@ $(document).ready(function(){
                 if(this.uniqueIDForSelectedArea && this.lockForSelectedArea){
                     let whereClause = `unique_id = '${this.uniqueIDForSelectedArea}'`;
                     // get count of features by unique id, if count is 0, add a new feature, otherwise, edit the existing feature
-                    this.queryTrainingResultsTable(whereClause).then(response=>{
+                    this._queryTrainingResultsTable(whereClause).then(response=>{
                         if(!response.features.length) {
                             this._addFeatureToTrainingResultsTable();
                         } else {
@@ -733,6 +750,19 @@ $(document).ready(function(){
                 let requestURL = TRAINING_RESULTS_TABLE_URL + `/${featureFID}/attachments`;
                 let params = {
                     f: 'json',
+                };
+                this._makeRestApiRequest(requestURL, params).then(response=>{
+                    deferred.resolve(response);
+                });
+                return deferred.promise();
+            };
+
+            this._queryAttachments = function(featureFIDs){
+                let deferred = $.Deferred();
+                let requestURL = TRAINING_RESULTS_TABLE_URL + `/queryAttachments`;
+                let params = {
+                    f: 'json',
+                    objectIds: featureFIDs
                 };
                 this._makeRestApiRequest(requestURL, params).then(response=>{
                     deferred.resolve(response);
