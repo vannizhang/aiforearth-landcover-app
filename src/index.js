@@ -405,6 +405,7 @@ $(document).ready(function(){
             this._requestAIServerOnErrorHandler = function(error){
                 console.error( "error when retrieve landcover classification image from AI server" );
                 this.resetSeletcedArea();
+                this.toggleLockForSelectedArea(false);
                 userInterfaceUtils.showRequestFailedAlert();
             };
 
@@ -606,7 +607,7 @@ $(document).ready(function(){
                         // console.log(response.features);
 
                         if(response.features.length){
-                            
+
                             let objectIds = response.features.map(d=>{
                                 return d.attributes[FIELD_NAME_OBJECTID]
                             }).join(',');
