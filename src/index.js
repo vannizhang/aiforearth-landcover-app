@@ -62,6 +62,8 @@ $(document).ready(function(){
         const FIELD_NAME_FOREST = 'forest_value';
         const FIELD_NAME_FIELD = 'field_value';
         const FIELD_NAME_BUILT = 'built_value';
+        const ATTACHMENT_NAME_LAND_COVER_IMG = 'landcover.png';
+        const ATTACHMENT_NAME_NAIP_IMG = 'naip.png';
 
         // app core modules
         let landcoverApp = null;
@@ -650,18 +652,18 @@ $(document).ready(function(){
 
                 function onAddResultsSuccessHandler(response){
                     let featureFID = ( response.addResults.length && response.addResults[0].success) ? response.addResults[0].objectId : null;
-                    // self._uploadLandcoverImage(featureFID);
-                    console.log('successfully added new feature to training result table');
+                    self._uploadLandcoverImage(featureFID);
+                    self._uploadSelectedNAIPImage(featureFID);
+                    userInterfaceUtils.showMessage('information for selected area has been submitted.')
+                    // console.log('successfully added new feature to training result table');
                 }
 
                 function onUpdateResultsSuccessHandler(response){
                     let featureFID = ( response.updateResults.length && response.updateResults[0].success) ? response.updateResults[0].objectId : null;
-                    console.log(`successfully updated feature (objectID: ${featureFID}) in training result table`);
-                    // self._deleteAttachments(featureFID).then(res=>{
-                    //     if(!res.error){
-                    //         self._uploadLandcoverImage(featureFID);
-                    //     } 
-                    // });
+                    // console.log(`successfully updated feature (objectID: ${featureFID}) in training result table`);
+                    // only needs to re-upload the land cover image because NAIP would be the unchanged for the same area
+                    self._uploadLandcoverImage(featureFID);
+                    userInterfaceUtils.showMessage('information for selected area has been updated.')
                 }
             }
 
@@ -708,21 +710,27 @@ $(document).ready(function(){
                 }
             };
 
-            this._addAttachmentToTrainingResultTable = function(featureFID, formData){
+            // call this function to add attachment or update attachment depends on if attachmentID is defined or not
+            // use addAttachment operation if attachmentID parameter is null
+            this._uploadAttachment = function(featureFID, formData, attachmentId=null){
                 let deferred = $.Deferred();
-                let requestURL = TRAINING_RESULTS_TABLE_URL + `/${featureFID}/addAttachment`;
+                let operationName = attachmentId ? 'updateAttachment' : 'addAttachment';
+                let requestURL = TRAINING_RESULTS_TABLE_URL + `/${featureFID}/${operationName}`;
                 let params = {
                     f: 'json',
                 };
+                if(attachmentId){
+                    params.attachmentId = attachmentId;
+                }
                 this._makeRestApiRequest(requestURL, params, formData).then(response=>{
                     deferred.resolve(response);
                 });
                 return deferred.promise();
             };
 
-            this._deleteAttachments = function(featureFID){
+            this._queryAttachmentInfo = function(featureFID){
                 let deferred = $.Deferred();
-                let requestURL = TRAINING_RESULTS_TABLE_URL + `/${featureFID}/deleteAttachments`;
+                let requestURL = TRAINING_RESULTS_TABLE_URL + `/${featureFID}/attachments`;
                 let params = {
                     f: 'json',
                 };
@@ -734,10 +742,14 @@ $(document).ready(function(){
 
             this._uploadLandcoverImage = function(featureFID){
                 let imageData = this._getImageHrefFromLandcoverMapImageLayer();
-                let formData = this._getAttachmentFormDataFromImageHref(imageData, 'landcover.png');
-                this._addAttachmentToTrainingResultTable(featureFID, formData).then(res=>{
-                    // console.log(res);
-                    this._uploadSelectedNAIPImage(featureFID);
+                let formData = this._getAttachmentFormDataFromImageHref(imageData, ATTACHMENT_NAME_LAND_COVER_IMG);
+
+                // the _getAttachmentIDByName function check if there is already a attchment with the same name, it would return the attachmentID or null value (if doesn't exist),
+                // which would be used by the _uploadAttachment function to determine which operation it should use (addAttachment vs updateAttachment)
+                this._getAttachmentIDByName(featureFID, ATTACHMENT_NAME_LAND_COVER_IMG).then(attachmentId=>{
+                    this._uploadAttachment(featureFID, formData, attachmentId).then(res=>{
+                        console.log(res);
+                    });
                 });
             };
 
@@ -745,12 +757,27 @@ $(document).ready(function(){
                 let imageHref = this.exportedNAIPImageHerf;
                 let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
                     let imageData = canvasForTiffImg.toDataURL();
-                    let formData = this._getAttachmentFormDataFromImageHref(imageData, 'naip.png');
-                    this._addAttachmentToTrainingResultTable(featureFID, formData).then(res=>{
+                    let formData = this._getAttachmentFormDataFromImageHref(imageData, ATTACHMENT_NAME_NAIP_IMG);
+                    this._uploadAttachment(featureFID, formData).then(res=>{
                         console.log(res);
                     });
                 };
                 this._getCanvasForTiff(imageHref, canvasForTiffImgOnloadHandler);
+            };
+
+            this._getAttachmentIDByName = function(featureFID, attachmentName){
+                let deferred = $.Deferred();
+                this._queryAttachmentInfo(featureFID).then(results=>{
+                    let attachmentInfos = results.attachmentInfos;
+                    let attachmentId = null;
+                    if(attachmentInfos.length){
+                        attachmentId = attachmentInfos.filter(d=>{
+                            return d.name === attachmentName;
+                        })[0].id;
+                    }
+                    deferred.resolve(attachmentId);
+                });
+                return deferred.promise();
             };
 
             this._makeRestApiRequest = function(requestURL, params, formData=null){
