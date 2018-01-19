@@ -404,6 +404,7 @@ $(document).ready(function(){
 
             this._requestAIServerOnErrorHandler = function(error){
                 console.error( "error when retrieve landcover classification image from AI server" );
+                this.resetSeletcedArea();
                 userInterfaceUtils.showRequestFailedAlert();
             };
 
