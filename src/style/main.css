@@ -19,8 +19,9 @@ html, body {
 
 .alert {
     position: absolute;
-    bottom: 50px;
+    bottom: 10px;
     right: 55px;
+    z-index: 2000;
 }
 
 /* #mapDiv_zoom_slider {
@@ -41,6 +42,10 @@ html, body {
     justify-content: flex-start;
     align-content: stretch;
     align-items: flex-start;
+}
+
+.training-results-panel-visible #tile-selection-control-panel {
+    display: none;
 }
 
 #opacity-slider-container {
@@ -354,7 +359,7 @@ a.is-active {
     }
 
     .nav-btn-div:before {
-        content: '0';
+        content: attr(data-num);
         display: block;
         position: absolute;
         top: 2px;
@@ -394,11 +399,33 @@ a.is-active {
         background-color: rgba(0,0,0,0.9);
         display: none;
         z-index: 1000;
+        color: #ccc;
     }
 
     .training-results-panel-visible #training-results-panel {
         display: unset;
     }
+
+    #training-results-panel hr {
+        margin: .75rem 0 2rem;
+    }
+
+    .training-location-images-wrap {
+        display:flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        align-content: stretch;
+        align-items: stretch;
+    }
+
+    .training-location-images-wrap > div {
+        flex-grow: 1;
+        flex-shrink: 0;
+        flex-basis: 100px;
+        padding-top: 40%;
+    }
+
 /* training-results-panel style*/
 
 .font-size--4 {

@@ -38,8 +38,8 @@ $(document).ready(function(){
         const OAUTH_APP_ID = 'NQgZFGVs4UkjeP22';
         const MAP_CONTAINER_ID = 'mapDiv';
         const LANDCOVER_PROCESSING_SERVICE_URLS = [
-            "http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml",
-            "http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml"
+            "http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml",
+            "http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml"
         ];
         const LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP = {
             "classified": "output_hard",
@@ -533,20 +533,6 @@ $(document).ready(function(){
                 return symbol;
             };
 
-            this.getMapZoomLevel = function(){
-                return this.map.getZoom();
-            };
-
-            this.zoomIn = function(){
-                let newZoomLevel = this.getMapZoomLevel() + 1;
-                this.map.setZoom(newZoomLevel);
-            };
-
-            this.zoomOut = function(){
-                let newZoomLevel = this.getMapZoomLevel() - 1;
-                this.map.setZoom(newZoomLevel);
-            };
-
             this._getRandomCity = function(){
                 let randomItemIndex = Math.floor(Math.random() * cities.length);
                 let randomCityCoord = cities[randomItemIndex].fields.coordinates;
@@ -597,11 +583,12 @@ $(document).ready(function(){
             this._signInSuccessHandler = function(portalUser){
                 console.log('signed in as ' + portalUser.username);
                 this._setPortalUser(portalUser);
-                this._getTrainingResultsByUsername(portalUser.username);
+                this._getTrainingResults(portalUser.username);
             };
 
-            this._getTrainingResultsByUsername = function(username){
-                let whereClause = `creator = '${username}'`;
+            this._getTrainingResults = function(){
+                let userName = this.portalUser.username;
+                let whereClause = `creator = '${userName}'`;
                 this._queryTrainingResultsTable(whereClause).then(response=>{
                     if(!response.error){
                         // console.log(response.features);
@@ -613,7 +600,9 @@ $(document).ready(function(){
                             }).join(',');
     
                             this._queryAttachments(objectIds).then(attachments=>{
-                                console.log(attachments);
+                                // console.log(attachments);
+                                let attachmentGroups = attachments.length ? attachments.attachmentGroups : [];
+                                userInterfaceUtils.populateTrainingResults(response.features, attachments.attachmentGroups);
                             });
                         }
 
@@ -676,8 +665,19 @@ $(document).ready(function(){
 
                 function onAddResultsSuccessHandler(response){
                     let featureFID = ( response.addResults.length && response.addResults[0].success) ? response.addResults[0].objectId : null;
-                    self._uploadLandcoverImage(featureFID);
-                    self._uploadSelectedNAIPImage(featureFID);
+                    // need to wait till both images are uploaded before re-populate the training results panel
+                    let countOfUploadedImgs = 0;
+                    let uploadImgOnSuccessHandler = function(res){
+                        if(!res.error){
+                            countOfUploadedImgs++;
+                            if(countOfUploadedImgs===2){
+                                // console.log('populating training results');
+                                self._getTrainingResults();
+                            }
+                        }
+                    };
+                    self._uploadLandcoverImage(featureFID, uploadImgOnSuccessHandler);
+                    self._uploadSelectedNAIPImage(featureFID, uploadImgOnSuccessHandler);
                     userInterfaceUtils.showMessage('information for selected area has been submitted.')
                     // console.log('successfully added new feature to training result table');
                 }
@@ -734,6 +734,22 @@ $(document).ready(function(){
                 }
             };
 
+            this.deleteFeatureFromTrainingResultsTable = function(uniqueID){
+                let deferred = $.Deferred();
+                let requestURL = TRAINING_RESULTS_TABLE_URL + '/deleteFeatures ';
+                let whereClause = `${FIELD_NAME_UNIQUEID} = '${uniqueID}'`;
+                let params = {
+                    f: 'json',
+                    where: whereClause
+                };
+
+                this._makeRestApiRequest(requestURL, params).then(response=>{
+                    deferred.resolve(response);
+                });
+
+                return deferred.promise();
+            };
+
             // call this function to add attachment or update attachment depends on if attachmentID is defined or not
             // use addAttachment operation if attachmentID parameter is null
             this._uploadAttachment = function(featureFID, formData, attachmentId=null){
@@ -777,7 +793,7 @@ $(document).ready(function(){
                 return deferred.promise();
             };
 
-            this._uploadLandcoverImage = function(featureFID){
+            this._uploadLandcoverImage = function(featureFID, callback){
                 let imageData = this._getImageHrefFromLandcoverMapImageLayer();
                 let formData = this._getAttachmentFormDataFromImageHref(imageData, ATTACHMENT_NAME_LAND_COVER_IMG);
 
@@ -785,18 +801,24 @@ $(document).ready(function(){
                 // which would be used by the _uploadAttachment function to determine which operation it should use (addAttachment vs updateAttachment)
                 this._getAttachmentIDByName(featureFID, ATTACHMENT_NAME_LAND_COVER_IMG).then(attachmentId=>{
                     this._uploadAttachment(featureFID, formData, attachmentId).then(res=>{
-                        console.log(res);
+                        // console.log(res);
+                        if(callback){
+                            callback(res);
+                        }
                     });
                 });
             };
 
-            this._uploadSelectedNAIPImage = function(featureFID){
+            this._uploadSelectedNAIPImage = function(featureFID, callback){
                 let imageHref = this.exportedNAIPImageHerf;
                 let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
                     let imageData = canvasForTiffImg.toDataURL();
                     let formData = this._getAttachmentFormDataFromImageHref(imageData, ATTACHMENT_NAME_NAIP_IMG);
                     this._uploadAttachment(featureFID, formData).then(res=>{
-                        console.log(res);
+                        // console.log(res);
+                        if(callback){
+                            callback(res);
+                        }
                     });
                 };
                 this._getCanvasForTiff(imageHref, canvasForTiffImgOnloadHandler);
@@ -908,12 +930,30 @@ $(document).ready(function(){
 
                 return deferred.promise();
             };
+
+            this.getPointByLongLat = function(lon, lat){
+                let pt = new esri.geometry.Point({
+                    latitude: lat,
+                    longitude: lon
+                });
+                pt = esri.geometry.project(pt, this.map);
+                return pt;
+            };
+
+            this.getMapZoomLevel = function(){
+                return this.map.getZoom();
+            };
+
+            this.setMapCenter = function(point){
+                this.toggleNAIPLayer(false);
+                this.map.centerAt(point);
+            };
         }
 
         function UserInterfaceUtils(){
 
             const NUM_OF_GRID_CELLS = 16;
-            const ALERT_DISPALY_TIME = 8000; // in ms
+            const ALERT_DISPALY_TIME = 5000; // in ms
             
             // cache DOM nodes
             const $body = $('body');
@@ -933,6 +973,9 @@ $(document).ready(function(){
             const $flyToRandomLocationBtn = $('.js-fly-to-random-location');
             const $selectOutputTypeBtn = $('.js-select-output-type-btn');
             const $submitTrainingDataBtn = $('.js-submit-training-data');
+            const $toggleTrainingResultsBtn = $('.js-toggle-training-results');
+            const $trainingResultsBlockGroup = $('.training-locations-block-groups');
+            const $sideNavBtn = $('.nav-btn-div');
 
             this.canvasForTiffImgSideLength = 0;
 
@@ -951,7 +994,10 @@ $(document).ready(function(){
                 $flyToRandomLocationBtn.on('click', flyToRandomLocationBtnOnClickHandler);
                 $selectOutputTypeBtn.on('click', selectOutputTypeBtnOnClickHandler);
                 $submitTrainingDataBtn.on('click', submitTrainingDataBtnOnClickHandler);
-
+                $toggleTrainingResultsBtn.on('click', toggleTrainingResults);
+                $body.on('click', '.js-delete-training-location', deleteTrainingLocationOnClickHandler);
+                $body.on('click', '.js-open-training-location', openTrainingLocationOnClickHandler);
+                
                 function trainingImageGridCellOnClickHandler(evt){
                     let targetGridCell = $(this);
                     let targetCellIndex = targetGridCell.attr('data-grid-index');
@@ -1011,6 +1057,92 @@ $(document).ready(function(){
 
                 function submitTrainingDataBtnOnClickHandler(evt){
                     landcoverApp.updateTrainingResultsTable();
+                }
+
+                function toggleTrainingResults(evt){
+                    $body.toggleClass('training-results-panel-visible');
+                }
+
+                function deleteTrainingLocationOnClickHandler(evt){
+                    let targetBlock = $(this).closest('.training-result-block');
+                    let targetFeatureUID = targetBlock.attr('data-uid');
+                    landcoverApp.deleteFeatureFromTrainingResultsTable(targetFeatureUID).then(res=>{
+                        if(!res.error){
+                            targetBlock.remove();
+                            self.decrementCountOfResults();
+                            self.showMessage('imformation for selected area has been successfully removed');
+                        }
+                    });
+                }
+
+                function openTrainingLocationOnClickHandler(evt){
+                    let targetBlock = $(this).closest('.training-result-block');
+                    let targetFeatureUID = targetBlock.attr('data-uid');
+                    let targetFeatureLon = +targetBlock.attr('data-lon');
+                    let targetFeatureLat = +targetBlock.attr('data-lat');
+                    let targetFeaturePoint = landcoverApp.getPointByLongLat(targetFeatureLon, targetFeatureLat);
+
+                    landcoverApp.selectAreaByPoint(targetFeaturePoint, targetFeatureUID);
+                    landcoverApp.setMapCenter(targetFeaturePoint);
+                    $body.toggleClass('training-results-panel-visible'); // hide training results table
+                }
+            };
+
+            this.populateCountOfResults = function(num){
+                $sideNavBtn.attr('data-num', num)
+            };
+
+            this.decrementCountOfResults = function(){
+                let num = +$sideNavBtn.attr('data-num');
+                num--;
+                $sideNavBtn.attr('data-num', num);
+            };
+
+            this.populateTrainingResults = function(features=[], attachmentsGroups=[]){
+                $trainingResultsBlockGroup.empty();
+                if(features.length){
+                    // console.log(features, attachmentsGroups);
+                    this.populateCountOfResults(features.length);
+
+                    let getAttachmentIdByName = function(attachmentInfos, name){
+                        let attachmentInfo = attachmentInfos.filter(d=>{
+                            return d.name === name;
+                        });
+                        let attachmentID = attachmentInfo.length ? attachmentInfo[0].id : null;
+                        return attachmentID;
+                    }
+
+                    let trainingResultsHtmlStr = features.map((feature, index)=>{
+
+                        let objectId = +feature.attributes[FIELD_NAME_OBJECTID];
+                        let uid = feature.attributes[FIELD_NAME_UNIQUEID];
+                        let locationName = feature.attributes[FIELD_NAME_LOCATION_NAME];
+                        let lon = feature.attributes[FIELD_NAME_LON];
+                        let lat = feature.attributes[FIELD_NAME_LAT];
+                        
+                        let attachmentInfos = attachmentsGroups.filter(d=>{
+                            return d.parentObjectId === objectId;
+                        })[0].attachmentInfos;
+
+                        let landcoverImgId = getAttachmentIdByName(attachmentInfos, ATTACHMENT_NAME_LAND_COVER_IMG);
+                        let naipImgId = getAttachmentIdByName(attachmentInfos, ATTACHMENT_NAME_NAIP_IMG);
+
+                        let htmlStr = `
+                            <div class="block training-result-block trailer-half" data-uid='${uid}' data-lon='${lon}' data-lat='${lat}'>
+                                <div class="training-location-images-wrap">
+                                    <div style='background: url(${TRAINING_RESULTS_TABLE_URL}/${objectId}/attachments/${landcoverImgId}) center center no-repeat; background-size: cover;'></div>
+                                    <div style='background: url(${TRAINING_RESULTS_TABLE_URL}/${objectId}/attachments/${naipImgId}) center center no-repeat; background-size: cover;'></div>
+                                </div>
+                                <div class="font-size--3">
+                                    <span class='js-open-training-location mouse-pointer'>${locationName}</span>
+                                    <span class='js-delete-training-location right icon-ui-trash mouse-pointer'></span>
+                                </div>
+                            </div>
+                        `;
+                        return htmlStr;
+                    }); 
+
+                    $trainingResultsBlockGroup.html(trainingResultsHtmlStr.join(''));
                 }
             };
 
