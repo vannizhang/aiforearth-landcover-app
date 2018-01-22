@@ -38,8 +38,8 @@ $(document).ready(function(){
         const OAUTH_APP_ID = 'NQgZFGVs4UkjeP22';
         const MAP_CONTAINER_ID = 'mapDiv';
         const LANDCOVER_PROCESSING_SERVICE_URLS = [
-            "http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml",
-            "http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml"
+            "http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml",
+            "http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml"
         ];
         const LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP = {
             "classified": "output_hard",
@@ -143,7 +143,7 @@ $(document).ready(function(){
 
             this._setUniqueIdForSelectedArea = function(uniqueID){
                 this.uniqueIDForSelectedArea = uniqueID;
-            }
+            };
 
             this._setExtentForSelectedArea = function(extent){
                 this.extentForSelectedArea = extent;
@@ -168,22 +168,26 @@ $(document).ready(function(){
 
             this.toggleLockForSelectedArea = function(isLocked=false){
                 this.lockForSelectedArea = isLocked;
-            }
+            };
 
             this.setLandcoverImageOutputType = function(outputType){
                 this.landcoverImageOutputType = outputType;
-            }
+            };
 
             // the main function to start selecting/processing an area
-            this.selectAreaByPoint = function(point, uniqueID){
+            this.selectAreaByPoint = function(point, uniqueID=null){
+                // use the value from uniqueID parameter to determine if this function is triggered by map click event or seelction made from training results panel,
+                // if it's triggered by map click event, we will have resetSeletcedArea() function to reset the silders to use shift values of [5,5,5,5], otherwise, use the shift values from sliders
+                let keepCurrentSliderValues = uniqueID ? true : false;
                 uniqueID = uniqueID || this._getUniqueID();
+                 
 
                 if(!point) {
                     console.error('a point geometry is required');
                     return;
                 } else {
                     // reset selected area before start selecting new area
-                    this.resetSeletcedArea();
+                    this.resetSeletcedArea(keepCurrentSliderValues);
 
                     let areaSelectHighlightGraphic = this._getSquareAreaGraphic(point);
                     let sqExtent = this._getSquareExtentByMapPoint(point);
@@ -199,10 +203,10 @@ $(document).ready(function(){
                     // lock selected area to prevent selecting another area while processing and reviewing lan cover image for the current area
                     this.toggleLockForSelectedArea(true); 
                 }
-            }
+            };
 
             // call this function to set and reset the shiftValues
-            this.updateShiftValues = function(index=null, value=null){
+            this.updateShiftValuesByIndex = function(index=null, value=null, shouldRequerySelectedArea=false){
                 if(!index && !value){
                     this.shiftValues = [5, 5, 5, 5];
                 } else {
@@ -210,10 +214,15 @@ $(document).ready(function(){
                     this.shiftValues[index] = value;
                 }
 
-                if(this.extentForSelectedArea){
+                if(this.extentForSelectedArea && shouldRequerySelectedArea){
                     this._getLandcoverImgForSelectedArea(this.extentForSelectedArea);
                 }                
-            }
+            };
+
+            this.bulkUpdateShiftValues = function(values=[]){
+                values = (values.length === 4) ? values : [5,5,5,5]; 
+                this.shiftValues = values;
+            };
 
             this._setNAIPImageServerURL = function(webMapResopnse){
                 let operationalLayers = webMapResopnse.itemInfo.itemData.operationalLayers;   
@@ -337,7 +346,7 @@ $(document).ready(function(){
             }
 
             
-            this.resetSeletcedArea = function(){
+            this.resetSeletcedArea = function(keepCurrentSliderValues=false){
                 // Do not call toggleLockForSelectedArea in this function
                 this._clearLandcoverMapImage();
                 this._setExtentForSelectedArea(null);
@@ -350,7 +359,10 @@ $(document).ready(function(){
                 userInterfaceUtils.toggleTileSelectionControlPanel(false);
                 userInterfaceUtils.toggleTrainingImageContainer(false);
                 userInterfaceUtils.resetTrainingImageGridCells();
-                userInterfaceUtils.resetLandcoverSliderValues();
+
+                if(!keepCurrentSliderValues){
+                    userInterfaceUtils.resetLandcoverSliderValues();
+                }
             }
 
             this._getLandcoverImgForSelectedArea = function(sqExtent){
@@ -996,7 +1008,7 @@ $(document).ready(function(){
                 $submitTrainingDataBtn.on('click', submitTrainingDataBtnOnClickHandler);
                 $toggleTrainingResultsBtn.on('click', toggleTrainingResults);
                 $body.on('click', '.js-delete-training-location', deleteTrainingLocationOnClickHandler);
-                $body.on('click', '.js-open-training-location', openTrainingLocationOnClickHandler);
+                // $body.on('click', '.js-open-training-location', openTrainingLocationOnClickHandler);
                 
                 function trainingImageGridCellOnClickHandler(evt){
                     let targetGridCell = $(this);
@@ -1013,7 +1025,8 @@ $(document).ready(function(){
                     let targetSlider = $(this);
                     let targetSliderIndex = $sliders.index(this);
                     let targetSliderVal = +targetSlider.val();
-                    landcoverApp.updateShiftValues(targetSliderIndex, targetSliderVal);
+                    let shouldRequerySelectedArea = (evt.originalEvent !== undefined) ? true : false;
+                    landcoverApp.updateShiftValuesByIndex(targetSliderIndex, targetSliderVal, shouldRequerySelectedArea);
                     self.toggleTrainingImageContainer(false);
                     self.populateTileFromActiveGridCellToMap();
                     // self.resetTrainingImageGridCells();
@@ -1074,18 +1087,6 @@ $(document).ready(function(){
                         }
                     });
                 }
-
-                function openTrainingLocationOnClickHandler(evt){
-                    let targetBlock = $(this).closest('.training-result-block');
-                    let targetFeatureUID = targetBlock.attr('data-uid');
-                    let targetFeatureLon = +targetBlock.attr('data-lon');
-                    let targetFeatureLat = +targetBlock.attr('data-lat');
-                    let targetFeaturePoint = landcoverApp.getPointByLongLat(targetFeatureLon, targetFeatureLat);
-
-                    landcoverApp.selectAreaByPoint(targetFeaturePoint, targetFeatureUID);
-                    landcoverApp.setMapCenter(targetFeaturePoint);
-                    $body.toggleClass('training-results-panel-visible'); // hide training results table
-                }
             };
 
             this.populateCountOfResults = function(num){
@@ -1110,15 +1111,38 @@ $(document).ready(function(){
                         });
                         let attachmentID = attachmentInfo.length ? attachmentInfo[0].id : null;
                         return attachmentID;
-                    }
+                    };
+
+                    let addOpenTrainingLocationOnClickHanlder = function(){
+                        $body.off('click', '.js-open-training-location'); // Remove the click event for all "js-open-training-location" btns
+                        $body.on('click', '.js-open-training-location', openTrainingLocationOnClickHandler);
+                    };
+
+                    let openTrainingLocationOnClickHandler = (evt)=>{
+                        let trainingResultIndex = $(evt.currentTarget).attr('data-index');
+                        let targetFeature = features[+trainingResultIndex];
+
+                        let uid = targetFeature.attributes[FIELD_NAME_UNIQUEID];
+                        let lon = +targetFeature.attributes[FIELD_NAME_LON];
+                        let lat = +targetFeature.attributes[FIELD_NAME_LAT];
+                        let targetFeaturePoint = landcoverApp.getPointByLongLat(lon, lat);
+
+                        let water = +targetFeature.attributes[FIELD_NAME_WATER];
+                        let forest = +targetFeature.attributes[FIELD_NAME_FOREST];
+                        let field = +targetFeature.attributes[FIELD_NAME_FIELD];
+                        let built = +targetFeature.attributes[FIELD_NAME_BUILT];
+
+                        this.setLandcoverSliderValues([water, forest, field, built]);
+
+                        landcoverApp.selectAreaByPoint(targetFeaturePoint, uid);
+                        landcoverApp.setMapCenter(targetFeaturePoint);
+                        $body.toggleClass('training-results-panel-visible'); // hide training results table
+                    };
 
                     let trainingResultsHtmlStr = features.map((feature, index)=>{
 
                         let objectId = +feature.attributes[FIELD_NAME_OBJECTID];
-                        let uid = feature.attributes[FIELD_NAME_UNIQUEID];
                         let locationName = feature.attributes[FIELD_NAME_LOCATION_NAME];
-                        let lon = feature.attributes[FIELD_NAME_LON];
-                        let lat = feature.attributes[FIELD_NAME_LAT];
                         
                         let attachmentInfos = attachmentsGroups.filter(d=>{
                             return d.parentObjectId === objectId;
@@ -1128,13 +1152,13 @@ $(document).ready(function(){
                         let naipImgId = getAttachmentIdByName(attachmentInfos, ATTACHMENT_NAME_NAIP_IMG);
 
                         let htmlStr = `
-                            <div class="block training-result-block trailer-half" data-uid='${uid}' data-lon='${lon}' data-lat='${lat}'>
+                            <div class="block training-result-block trailer-half">
                                 <div class="training-location-images-wrap">
                                     <div style='background: url(${TRAINING_RESULTS_TABLE_URL}/${objectId}/attachments/${landcoverImgId}) center center no-repeat; background-size: cover;'></div>
                                     <div style='background: url(${TRAINING_RESULTS_TABLE_URL}/${objectId}/attachments/${naipImgId}) center center no-repeat; background-size: cover;'></div>
                                 </div>
                                 <div class="font-size--3">
-                                    <span class='js-open-training-location mouse-pointer'>${locationName}</span>
+                                    <span class='js-open-training-location mouse-pointer' data-index='${index}'>${locationName}</span>
                                     <span class='js-delete-training-location right icon-ui-trash mouse-pointer'></span>
                                 </div>
                             </div>
@@ -1143,6 +1167,7 @@ $(document).ready(function(){
                     }); 
 
                     $trainingResultsBlockGroup.html(trainingResultsHtmlStr.join(''));
+                    addOpenTrainingLocationOnClickHanlder();
                 }
             };
 
@@ -1154,6 +1179,17 @@ $(document).ready(function(){
 
             this.resetLandcoverSliderValues = function(){
                 $sliders.val(5);
+                landcoverApp.bulkUpdateShiftValues();
+            };
+
+            this.setLandcoverSliderValues = function(values=[]){
+                if(values.length === 4){
+                    values.forEach( (value, index)=>{
+                        let targetSlider = $sliders.eq(index);
+                        targetSlider.val(value);
+                    });
+                }
+                landcoverApp.bulkUpdateShiftValues(values);
             };
 
             this.toggleTileSelectionControlPanel = function(isVisible){
