@@ -38,7 +38,7 @@ $(document).ready(function(){
         const OAUTH_APP_ID = 'NQgZFGVs4UkjeP22';
         const MAP_CONTAINER_ID = 'mapDiv';
         const LANDCOVER_PROCESSING_SERVICE_URLS = [
-            "https://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml",
+            "http://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml",
             "http://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml"
         ];
         const LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP = {
@@ -96,11 +96,11 @@ $(document).ready(function(){
             this.locationNameForSelectedArea = '';
             this.uniqueIDForSelectedArea = ''; // this value will be used to choose between addFeature vs editFeature when user click the "teach the machine" btn
             this.exportedNAIPImageHerf = '';
-
             this.portalUser = null;
             
-            this.symbolForSquareAreaReferenceGraphic = null;
-            this.symbolForSquareAreaHighlightGraphic = null;
+            let symbolForSquareAreaReferenceGraphic = null;
+            let symbolForSquareAreaHighlightGraphic = null;
+            let timer = null; // use this timer to delay the final action of updateShiftValuesByIndex function to prevent calling _getLandcoverImgForSelectedArea function multiple times in short time 
             
             this.startup = function(){
                 this._signInToArcGISPortal(OAUTH_APP_ID);
@@ -214,9 +214,14 @@ $(document).ready(function(){
                     this.shiftValues[index] = value;
                 }
 
-                if(this.extentForSelectedArea && shouldRequerySelectedArea){
-                    this._getLandcoverImgForSelectedArea(this.extentForSelectedArea);
-                }                
+                clearTimeout(timer);
+                timer = window.setTimeout(() => {
+                    if(this.extentForSelectedArea && shouldRequerySelectedArea){
+                        this._getLandcoverImgForSelectedArea(this.extentForSelectedArea);
+                        userInterfaceUtils.toggleTrainingImageContainer(false);
+                    }
+                    // console.log(this.shiftValues);
+                }, 1500);
             };
 
             this.bulkUpdateShiftValues = function(values=[]){
@@ -423,19 +428,33 @@ $(document).ready(function(){
 
             this.populateOutputTiffImageFromAiServer = function(){
                 if(this.aiServerResponse && this.lockForSelectedArea){
+                    // console.log('start processing response from AI server', this.aiServerResponse);
                     let outputType = this.landcoverImageOutputType;
+                    let keyForCachedOutputTiffImg = outputType + '_canvas';
+                    let cachedOutputTiffImg = this.aiServerResponse[keyForCachedOutputTiffImg];
                     let imageSrcPath = this.aiServerResponse[outputType];
-                    let canvasForTiffImgOnloadHandler = function(canvasForTiffImg){
+
+                    let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
+                        if(!cachedOutputTiffImg){
+                            this.aiServerResponse[keyForCachedOutputTiffImg] = canvasForTiffImg;
+                        }
                         let imageData = canvasForTiffImg.toDataURL();
                         userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
                         userInterfaceUtils.toggleLoadingIndicator(false);
                         userInterfaceUtils.populateTrainingImage(imageData);
+                        // console.log('populating canvas for tiff image to training image container', canvasForTiffImg);
                     };
-                    this._getCanvasForTiff(imageSrcPath, canvasForTiffImgOnloadHandler);
+
+                    if(!cachedOutputTiffImg){
+                        this._getCanvasForTiff(imageSrcPath, canvasForTiffImgOnloadHandler);
+                    } else {
+                        canvasForTiffImgOnloadHandler(cachedOutputTiffImg);
+                    }
                 } 
             };
 
             this._getCanvasForTiff = function(imageSrcPath, callback){
+                console.log('converting tiff image to canvas');
                 let xhr = new XMLHttpRequest();
                 xhr.open('GET', imageSrcPath);
                 xhr.responseType = 'arraybuffer';
@@ -495,9 +514,9 @@ $(document).ready(function(){
                 const FILL_COLOR_FOR_REF_GRAPHIC = [50,50,50,100];
                 const OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC = [0, 0, 0, 200];
 
-                this.symbolForSquareAreaReferenceGraphic = (!this.symbolForSquareAreaReferenceGraphic) ? this._getSimpleFillSymbol(FILL_COLOR_FOR_REF_GRAPHIC) : this.symbolForSquareAreaReferenceGraphic;
-                this.symbolForSquareAreaHighlightGraphic = (!this.symbolForSquareAreaHighlightGraphic) ? this._getSimpleFillSymbol(null, OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC) : this.symbolForSquareAreaHighlightGraphic;
-                let symbolByEventType = (eventType === 'click') ? this.symbolForSquareAreaHighlightGraphic : this.symbolForSquareAreaReferenceGraphic;
+                symbolForSquareAreaReferenceGraphic = (!symbolForSquareAreaReferenceGraphic) ? this._getSimpleFillSymbol(FILL_COLOR_FOR_REF_GRAPHIC) : symbolForSquareAreaReferenceGraphic;
+                symbolForSquareAreaHighlightGraphic = (!symbolForSquareAreaHighlightGraphic) ? this._getSimpleFillSymbol(null, OUTLINE_COLOR_FOR_HIGHLIGHT_GRAPHIC) : symbolForSquareAreaHighlightGraphic;
+                let symbolByEventType = (eventType === 'click') ? symbolForSquareAreaHighlightGraphic : symbolForSquareAreaReferenceGraphic;
                 return symbolByEventType;
             };
 
@@ -998,6 +1017,7 @@ $(document).ready(function(){
 
             this.initEventHandlers = function(){
                 let self = this;
+
                 $body.on('click', '.grid-cell', trainingImageGridCellOnClickHandler);
                 $sliders.on('change', sliderOnChangeHandler);
                 $tileSelectionCloseBtn.on('click', tileSelectionCloseBtnOnClickHandler);
@@ -1007,7 +1027,7 @@ $(document).ready(function(){
                 $selectOutputTypeBtn.on('click', selectOutputTypeBtnOnClickHandler);
                 $submitTrainingDataBtn.on('click', submitTrainingDataBtnOnClickHandler);
                 $toggleTrainingResultsBtn.on('click', toggleTrainingResults);
-                $body.on('click', '.js-delete-training-location', deleteTrainingLocationOnClickHandler);
+                // $body.on('click', '.js-delete-training-location', deleteTrainingLocationOnClickHandler);
                 // $body.on('click', '.js-open-training-location', openTrainingLocationOnClickHandler);
                 
                 function trainingImageGridCellOnClickHandler(evt){
@@ -1026,11 +1046,8 @@ $(document).ready(function(){
                     let targetSliderIndex = $sliders.index(this);
                     let targetSliderVal = +targetSlider.val();
                     let shouldRequerySelectedArea = (evt.originalEvent !== undefined) ? true : false;
+
                     landcoverApp.updateShiftValuesByIndex(targetSliderIndex, targetSliderVal, shouldRequerySelectedArea);
-                    self.toggleTrainingImageContainer(false);
-                    self.populateTileFromActiveGridCellToMap();
-                    // self.resetTrainingImageGridCells();
-                    // console.log(targetSliderIndex, targetSliderVal);
                 }
 
                 function tileSelectionCloseBtnOnClickHandler(evt){
@@ -1064,6 +1081,9 @@ $(document).ready(function(){
                     $selectOutputTypeBtn.removeClass('is-active');
                     $('.js-select-output-type-btn[data-output-type="' + outputType + '"]').addClass('is-active'); // select by output type because we have two sets of js-select-output-type-btn
 
+                    self.toggleLoadingIndicator(true);
+                    self.toggleTrainingImageContainer(false);
+
                     landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[outputType]);
                     landcoverApp.populateOutputTiffImageFromAiServer();
                 }
@@ -1074,18 +1094,6 @@ $(document).ready(function(){
 
                 function toggleTrainingResults(evt){
                     $body.toggleClass('training-results-panel-visible');
-                }
-
-                function deleteTrainingLocationOnClickHandler(evt){
-                    let targetBlock = $(this).closest('.training-result-block');
-                    let targetFeatureUID = targetBlock.attr('data-uid');
-                    landcoverApp.deleteFeatureFromTrainingResultsTable(targetFeatureUID).then(res=>{
-                        if(!res.error){
-                            targetBlock.remove();
-                            self.decrementCountOfResults();
-                            self.showMessage('imformation for selected area has been successfully removed');
-                        }
-                    });
                 }
             };
 
@@ -1113,13 +1121,17 @@ $(document).ready(function(){
                         return attachmentID;
                     };
 
-                    let addOpenTrainingLocationOnClickHanlder = function(){
+                    let addClickHanlderToTrainingResults = function(){
                         $body.off('click', '.js-open-training-location'); // Remove the click event for all "js-open-training-location" btns
+                        $body.off('click', '.js-delete-training-location'); // Remove the click event for all "js-open-training-location" btns
+
                         $body.on('click', '.js-open-training-location', openTrainingLocationOnClickHandler);
+                        $body.on('click', '.js-delete-training-location', deleteTrainingLocationOnClickHandler);
                     };
 
                     let openTrainingLocationOnClickHandler = (evt)=>{
-                        let trainingResultIndex = $(evt.currentTarget).attr('data-index');
+                        let targetBtn = $(evt.currentTarget);
+                        let trainingResultIndex = targetBtn.closest('.training-result-block').attr('data-index');
                         let targetFeature = features[+trainingResultIndex];
 
                         let uid = targetFeature.attributes[FIELD_NAME_UNIQUEID];
@@ -1139,6 +1151,22 @@ $(document).ready(function(){
                         $body.toggleClass('training-results-panel-visible'); // hide training results table
                     };
 
+                    let deleteTrainingLocationOnClickHandler = (evt)=>{
+                        let targetBtn = $(evt.currentTarget);
+                        let targetBlock = targetBtn.closest('.training-result-block');
+                        let trainingResultIndex = targetBlock.attr('data-index');
+                        let targetFeature = features[+trainingResultIndex];
+                        let targetFeatureUID = targetFeature.attributes[FIELD_NAME_UNIQUEID];
+
+                        landcoverApp.deleteFeatureFromTrainingResultsTable(targetFeatureUID).then(res=>{
+                            if(!res.error){
+                                targetBlock.remove();
+                                this.decrementCountOfResults();
+                                this.showMessage('imformation for selected area has been successfully removed');
+                            }
+                        });
+                    }
+
                     let trainingResultsHtmlStr = features.map((feature, index)=>{
 
                         let objectId = +feature.attributes[FIELD_NAME_OBJECTID];
@@ -1152,13 +1180,13 @@ $(document).ready(function(){
                         let naipImgId = getAttachmentIdByName(attachmentInfos, ATTACHMENT_NAME_NAIP_IMG);
 
                         let htmlStr = `
-                            <div class="block training-result-block trailer-half">
+                            <div class="block training-result-block trailer-half" data-index='${index}'>
                                 <div class="training-location-images-wrap">
                                     <div style='background: url(${TRAINING_RESULTS_TABLE_URL}/${objectId}/attachments/${landcoverImgId}) center center no-repeat; background-size: cover;'></div>
                                     <div style='background: url(${TRAINING_RESULTS_TABLE_URL}/${objectId}/attachments/${naipImgId}) center center no-repeat; background-size: cover;'></div>
                                 </div>
                                 <div class="font-size--3">
-                                    <span class='js-open-training-location mouse-pointer' data-index='${index}'>${locationName}</span>
+                                    <span class='js-open-training-location mouse-pointer'>${locationName}</span>
                                     <span class='js-delete-training-location right icon-ui-trash mouse-pointer'></span>
                                 </div>
                             </div>
@@ -1167,7 +1195,7 @@ $(document).ready(function(){
                     }); 
 
                     $trainingResultsBlockGroup.html(trainingResultsHtmlStr.join(''));
-                    addOpenTrainingLocationOnClickHanlder();
+                    addClickHanlderToTrainingResults();
                 }
             };
 
