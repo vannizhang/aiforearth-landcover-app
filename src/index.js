@@ -38,8 +38,10 @@ $(document).ready(function(){
         const OAUTH_APP_ID = 'NQgZFGVs4UkjeP22';
         const MAP_CONTAINER_ID = 'mapDiv';
         const LANDCOVER_PROCESSING_SERVICE_URLS = [
-            "https://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml",
-            "https://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml"
+            // "https://vm-land-arcdemo.eastus.cloudapp.azure.com/LCHandler.cshtml",
+            // "https://vm-land-arcgis1.eastus.cloudapp.azure.com/LCHandler.cshtml"
+            'https://landcovermap.com/LCHandler.cshtml',
+            'https://arcgis.landcovermap.com/LCHandler.cshtml'
         ];
         const LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP = {
             "classified": "output_hard",
