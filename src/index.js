@@ -483,7 +483,7 @@ $(document).ready(function(){
             };
 
             this._getParamsToExportImageFromNAIPLayer = function(selectedAreaExtent){
-                const padding = 0;
+                const padding = 64;
                 let requestParams = {
                     bbox: (selectedAreaExtent.xmin - padding) + "," + (selectedAreaExtent.ymin - padding) + "," + (selectedAreaExtent.xmax + padding) + "," + (selectedAreaExtent.ymax + padding),
                     size: (384 + 2 * padding) + "," + (384 + 2 * padding),
