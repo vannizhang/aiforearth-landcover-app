@@ -242,6 +242,22 @@ input.customized-slider{
     text-align: center;
 }
 
+/* .slider-label-div.water {
+    color: rgba(0,0,255,1);
+}
+
+.slider-label-div.forest {
+    color: rgba(0,128,0,1);
+}
+
+.slider-label-div.field {
+    color: rgba(128,255,128,1);
+}
+
+.slider-label-div.build {
+    color: rgba(128,96,96,1);
+} */
+
 .location-search-input-wrap {
     flex-grow: 1;
     flex-shrink: 0;
