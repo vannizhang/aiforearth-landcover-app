@@ -155,7 +155,7 @@ $(document).ready(function(){
             };
 
             this._setExportedNAIPImageHerf = function(href=''){
-                this.exportedNAIPImageHerf = href;
+                this.exportedNAIPImageHerf = href ? href.replace('http://', 'https://') : '';
             };
 
             this._getCenterPointOfSelectedAreaExtent = function(){
@@ -238,7 +238,7 @@ $(document).ready(function(){
                 })[0];
                 if(NAIPLayer){
                     this._setNAIPLayer(NAIPLayer.layerObject);
-                    this.NAIPImageServerURL = NAIPLayer.url.replace('http://', 'https://');
+                    this.NAIPImageServerURL = NAIPLayer.url;
                 } else {
                     console.log('NAIP layer not found!');
                     return;
