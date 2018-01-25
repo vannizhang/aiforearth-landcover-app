@@ -238,7 +238,7 @@ $(document).ready(function(){
                 })[0];
                 if(NAIPLayer){
                     this._setNAIPLayer(NAIPLayer.layerObject);
-                    this.NAIPImageServerURL = NAIPLayer.url;
+                    this.NAIPImageServerURL = NAIPLayer.url.replace('http://', 'https://');
                 } else {
                     console.log('NAIP layer not found!');
                     return;
@@ -704,7 +704,7 @@ $(document).ready(function(){
                         if(!res.error){
                             countOfUploadedImgs++;
                             if(countOfUploadedImgs===2){
-                                // console.log('populating training results');
+                                console.log('populating saved training results');
                                 self._getTrainingResults();
                             }
                         }
