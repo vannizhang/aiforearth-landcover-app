@@ -69,14 +69,15 @@
         
         <div id='map-control-items-wrap' class='panel panel-no-padding panel-no-border panel-transparent'>
             <div class='location-search-input-wrap'>
-                <input class="input-group-input" type="text" placeholder="Location...">
+                <input id='search-input' class="input-group-input" type="text" placeholder="Location...">
+                <div class='address-candidates-list'></div>
             </div>
-            <!-- <div class='margin-left-half right control-btn mouse-pointer font-size--3 js-switch-ldhandler-service-url tooltip tooltip-left is-active' data-url-index="0" aria-label="switch to LC Handler Server 1">
+            <!-- <div class='margin-left-half right control-btn mouse-pointer font-size--3 js-switch-ldhandler-service-url tooltip tooltip-left' data-url-index="0" aria-label="switch to LC Handler Server 1">
                 <span class="fa fa-cloud" aria-hidden="true"></span><span class='margin-left-quarter'>1</span>
-            </div>
-            <div class='right control-btn margin-left-quarter mouse-pointer font-size--3 js-switch-ldhandler-service-url tooltip tooltip-left' data-url-index="1" aria-label="switch to LC Handler Server 2">
-                <span class="fa fa-cloud" aria-hidden="true"></span><span class='margin-left-quarter'>2</span>
             </div> -->
+            <div class='margin-left-half right control-btn margin-left-quarter mouse-pointer font-size--3 js-zoom-to-selected-area tooltip tooltip-left' data-url-index="1" aria-label="return to selected area">
+                <span class="fa fa-thumb-tack" aria-hidden="true"></span>
+            </div>
             <div class='margin-left-half right control-btn mouse-pointer js-fly-to-random-location tooltip tooltip-left' aria-label="fly to a random location">
                 <span class="fa fa-random" aria-hidden="true"></span>
             </div>
@@ -110,6 +111,9 @@
                     <div class="loader-bars"></div>
                     <div class="loader-text">Processing...</div>
                 </div>
+                <div id='return-to-selected-area-btn-wrap' class='hide'>
+                    <button class="btn js-zoom-to-selected-area"> Return to selected area </button>
+                </div>
                 <span id='training-image-message'>Choose a training area</span>
             </div>
         </div>
@@ -139,7 +143,7 @@
 
                 <div class='adjustment-slider-div'>
                     <div class='adjustment-slider'>
-                        <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5"/>
+                        <input class='customized-slider' type="range" orient="vertical" min="1" max="10" value="5" />
                     </div>
                     <div class='slider-label-div forest'>
                         <div></div>

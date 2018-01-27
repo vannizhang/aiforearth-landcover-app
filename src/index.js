@@ -29,6 +29,8 @@ $(document).ready(function(){
     dojo.require("esri.IdentityManager");
     dojo.require("esri.arcgis.Portal");
 
+    dojo.require("esri.dijit.Search");
+
     dojo.ready(dojoOnReadyHandler); 
     
     function dojoOnReadyHandler() {  
@@ -51,6 +53,7 @@ $(document).ready(function(){
         const LANDCOVER_MAP_IMAGE_LAYER_ID = 'landcoverMapImageLayer';
         const AREA_SELECT_GRAPHIC_LAYER_ID = 'areaSelectGraphicLayer'; 
         const REVERSE_GEOCODE_URL = 'http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode';
+        const FIND_ADDRESS_CANDIDATES_URL = 'http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates';
         
         // config data for training results table 
         const TRAINING_RESULTS_TABLE_URL = 'https://services6.arcgis.com/TAVvcHO9Uf3mGozE/arcgis/rest/services/aiforearth_landcover_app_training_results/FeatureServer/0';
@@ -99,6 +102,8 @@ $(document).ready(function(){
             this.uniqueIDForSelectedArea = ''; // this value will be used to choose between addFeature vs editFeature when user click the "teach the machine" btn
             this.exportedNAIPImageHerf = '';
             this.portalUser = null;
+            this.isNAIPLayerDisabledByUser = false;
+            this.currentProcessUID = ''; // the UID that will be used to identify the most current request that has been sent to AI server
             
             let symbolForSquareAreaReferenceGraphic = null;
             let symbolForSquareAreaHighlightGraphic = null;
@@ -156,6 +161,14 @@ $(document).ready(function(){
 
             this._setExportedNAIPImageHerf = function(href=''){
                 this.exportedNAIPImageHerf = href ? href.replace('http://', 'https://') : '';
+            };
+
+            this.setIsNAIPLayerDisabledByUser = function(bool){
+                this.isNAIPLayerDisabledByUser = bool;
+            };
+
+            this._setCurrentProcessUID = function(uid=''){
+                this.currentProcessUID = uid;
             };
 
             this._getCenterPointOfSelectedAreaExtent = function(){
@@ -317,9 +330,15 @@ $(document).ready(function(){
 
             this._mapOnClickHandler = function(evt){    
                 // console.log(evt.mapPoint);
-                if(!this.lockForSelectedArea){
-                    this.selectAreaByPoint(evt.mapPoint);
-                } 
+                // // original approach that won't allow select new area when tile selection window is open
+                // if(!this.lockForSelectedArea){
+                //     this.selectAreaByPoint(evt.mapPoint);
+                // } 
+
+                if(this.lockForSelectedArea){
+                    userInterfaceUtils.closeTileSelectionWindow();
+                }
+                this.selectAreaByPoint(evt.mapPoint);
             };
 
             // show area select reference layer on mousemove
@@ -342,17 +361,26 @@ $(document).ready(function(){
             };
 
             this._mapOnMoveEndHandler = function(point, extent){
+                let zoomLevel = this.getMapZoomLevel();
                 if(this.extentForSelectedArea){
                     userInterfaceUtils.updateTileSelectionCtrlPanelPosition();
                     userInterfaceUtils.toggleTileSelectionControlPanel(true);
-                }
+
+                    if(zoomLevel <= 11){
+                        userInterfaceUtils.toggleReturnToSelectedAreaBtn(true);
+                    } else {
+                        userInterfaceUtils.toggleReturnToSelectedAreaBtn(false);
+                    }
+                } 
             };
 
             this._mapOnUpdateEndHandler = function(){
-                this.toggleNAIPLayer(true);
+                // show NAIP layer if it is not disabled by user
+                if(!this.isNAIPLayerDisabledByUser){
+                    this.toggleNAIPLayer(true);
+                }
             }
 
-            
             this.resetSeletcedArea = function(keepCurrentSliderValues=false){
                 // Do not call toggleLockForSelectedArea in this function
                 this._clearLandcoverMapImage();
@@ -362,10 +390,13 @@ $(document).ready(function(){
                 this._setLocationNameForSelectedArea(null);
                 this._setUniqueIdForSelectedArea(null);
                 this._setExportedNAIPImageHerf(null);
+                this._setCurrentProcessUID(null);
 
                 userInterfaceUtils.toggleTileSelectionControlPanel(false);
                 userInterfaceUtils.toggleTrainingImageContainer(false);
                 userInterfaceUtils.resetTrainingImageGridCells();
+                userInterfaceUtils.toggleReturnToSelectedAreaBtn(false);
+                userInterfaceUtils.toggleLoadingIndicator(false);
 
                 if(!keepCurrentSliderValues){
                     userInterfaceUtils.resetLandcoverSliderValues();
@@ -376,6 +407,10 @@ $(document).ready(function(){
 
                 userInterfaceUtils.toggleLoadingIndicator(true);
 
+                // generate a new UID that will be used to identify each request send to AI server
+                let processUID = this._getUniqueID();
+                this._setCurrentProcessUID(processUID);
+
                 this._exportNAIPImageForSelectedArea(sqExtent).then(response=>{
                     if(response.error){
                         // console.error("error when export NAIP image", response.error);
@@ -383,18 +418,19 @@ $(document).ready(function(){
                         return;
                     } else {
                         // console.log("Successfully export the NAIP Image ", response);
-                        let params = this._getParamsToRequestAIServer(response);
+                        let params = this._getParamsToRequestAIServer(response, processUID);
                         this._requestAIServer(params);
                         this._setExportedNAIPImageHerf(response.href);
                     }
                 });
             };
 
-            this._getParamsToRequestAIServer = function(exportedNAIPImageResponse){
+            this._getParamsToRequestAIServer = function(exportedNAIPImageResponse, processUID){
                 const MODE = "rgb"; // rgb or cls
                 const SHIFTS = this._getShiftValues();
                 exportedNAIPImageResponse.mode = MODE;
                 exportedNAIPImageResponse.w = SHIFTS;
+                exportedNAIPImageResponse.processUID = processUID;
                 return JSON.stringify(exportedNAIPImageResponse);
             };
 
@@ -408,7 +444,10 @@ $(document).ready(function(){
                     context: this
                 })
                 .done(function( response ) {
-                    this._requestAIServerOnSuccessHandler(response);
+                    // proceed to on success handler only if the area is still locked; and the processUID of this request equals the concurrent processUID 
+                    if(this.lockForSelectedArea && response.processUID === this.currentProcessUID){
+                        this._requestAIServerOnSuccessHandler(response);
+                    } 
                 })
                 .fail(function() {
                     this._requestAIServerOnErrorHandler();
@@ -418,7 +457,7 @@ $(document).ready(function(){
             this._requestAIServerOnSuccessHandler = function(response){
                 // console.log(response);
                 this._setAiServerResponse(response);
-                this.populateOutputTiffImageFromAiServer();
+                this.populateOutputTiffImageFromAiServer(response.processUID);
             };
 
             this._requestAIServerOnErrorHandler = function(error){
@@ -426,10 +465,24 @@ $(document).ready(function(){
                 this.resetSeletcedArea();
                 this.toggleLockForSelectedArea(false);
                 userInterfaceUtils.showRequestFailedAlert();
+                userInterfaceUtils.toggleLoadingIndicator(false);
             };
 
-            this.populateOutputTiffImageFromAiServer = function(){
-                if(this.aiServerResponse && this.lockForSelectedArea){
+            this._preloadUnselectedOutputTiffImg = function(){
+                let unselectedOutputTpe = this.landcoverImageOutputType === 'output_hard' ? 'output_soft' : 'output_hard';
+                let imageSrcPath = this.aiServerResponse[unselectedOutputTpe];
+                let keyForCachedOutputTiffImg = unselectedOutputTpe + '_canvas';
+                let cachedOutputTiffImg = this.aiServerResponse[keyForCachedOutputTiffImg];
+                let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
+                    this.aiServerResponse[keyForCachedOutputTiffImg] = canvasForTiffImg;
+                }
+                if(!cachedOutputTiffImg){
+                    this._getCanvasForTiff(imageSrcPath, canvasForTiffImgOnloadHandler);
+                }
+            };
+
+            this.populateOutputTiffImageFromAiServer = function(processUID){
+                if(this.aiServerResponse && this.lockForSelectedArea && processUID === this.currentProcessUID){
                     // console.log('start processing response from AI server', this.aiServerResponse);
                     let outputType = this.landcoverImageOutputType;
                     let keyForCachedOutputTiffImg = outputType + '_canvas';
@@ -440,15 +493,19 @@ $(document).ready(function(){
                         if(!cachedOutputTiffImg){
                             this.aiServerResponse[keyForCachedOutputTiffImg] = canvasForTiffImg;
                         }
-                        let imageData = canvasForTiffImg.toDataURL();
-                        userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
-                        userInterfaceUtils.toggleLoadingIndicator(false);
-                        userInterfaceUtils.populateTrainingImage(imageData);
+
+                        if(this.lockForSelectedArea){
+                            let imageData = canvasForTiffImg.toDataURL();
+                            userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
+                            userInterfaceUtils.populateTrainingImage(imageData);
+                            userInterfaceUtils.toggleLoadingIndicator(false);
+                        }
                         // console.log('populating canvas for tiff image to training image container', canvasForTiffImg);
                     };
 
                     if(!cachedOutputTiffImg){
                         this._getCanvasForTiff(imageSrcPath, canvasForTiffImgOnloadHandler);
+                        this._preloadUnselectedOutputTiffImg();
                     } else {
                         canvasForTiffImgOnloadHandler(cachedOutputTiffImg);
                     }
@@ -577,13 +634,21 @@ $(document).ready(function(){
             };
 
             this.flyToRandomLocation = function(){
+                let randomCity = this._getRandomCity();
+                this.flyToLocationByXY(randomCity.coordinates[1], randomCity.coordinates[0], randomCity.label)
+            };
+
+            this.flyToLocationByXY = function(x, y, locationName){
+                
+                let point = new esri.geometry.Point({"x": x, "y": y, "spatialReference": {"wkid": 4326 } });
                 this.toggleNAIPLayer(false);
                 this.resetSeletcedArea();
-                let randomCity = this._getRandomCity();
-                let randomLocationPt = new esri.geometry.Point({"x": randomCity.coordinates[1], "y": randomCity.coordinates[0], "spatialReference": {"wkid": 4326 } });
-                this.map.centerAt(randomLocationPt);
+                this.map.centerAt(point);
                 this.toggleLockForSelectedArea(false); 
-                userInterfaceUtils.showMessage(randomCity.label);
+
+                if(locationName){
+                    userInterfaceUtils.showMessage(locationName);
+                }
             };
 
             this.toggleNAIPLayer = function(isVisible){
@@ -964,6 +1029,23 @@ $(document).ready(function(){
                 return deferred.promise();
             };
 
+            this.getAddressCandidate = function(locationName=''){
+                let deferred = $.Deferred();
+                let params = {
+                    f: 'json',
+                    singleLine: locationName,
+                    sourceCountry: 'USA'
+                };
+
+                this._makeRestApiRequest(FIND_ADDRESS_CANDIDATES_URL, params).then(res=>{
+                    if(!res.error){
+                        deferred.resolve(res);
+                    }
+                });
+
+                return deferred.promise();
+            };
+
             this.getPointByLongLat = function(lon, lat){
                 let pt = new esri.geometry.Point({
                     latitude: lat,
@@ -981,6 +1063,13 @@ $(document).ready(function(){
                 this.toggleNAIPLayer(false);
                 this.map.centerAt(point);
             };
+
+            this.zoomToSelectedArea = function(){
+                if(this.extentForSelectedArea){
+                    this.map.setExtent(this.extentForSelectedArea, true);
+                }
+            };
+
         }
 
         function UserInterfaceUtils(){
@@ -1009,6 +1098,12 @@ $(document).ready(function(){
             const $toggleTrainingResultsBtn = $('.js-toggle-training-results');
             const $trainingResultsBlockGroup = $('.training-locations-block-groups');
             const $sideNavBtn = $('.nav-btn-div');
+            const $searchInput = $('#search-input');
+            const $addressCandidatesList = $('.address-candidates-list');
+            const $returnToSelectedAreaBtn = $('#return-to-selected-area-btn-wrap');
+            const $toggleNAIPLayerBtn = $('.js-toggle-naip-layer');
+            const $toggleMoreControlOptionsBtn = $('.js-toggle-more-control-options');
+            const $moreCtrlOptions = $('#more-control-options-wrap');
 
             this.canvasForTiffImgSideLength = 0;
 
@@ -1029,8 +1124,16 @@ $(document).ready(function(){
                 $selectOutputTypeBtn.on('click', selectOutputTypeBtnOnClickHandler);
                 $submitTrainingDataBtn.on('click', submitTrainingDataBtnOnClickHandler);
                 $toggleTrainingResultsBtn.on('click', toggleTrainingResults);
+                $body.on('click', '.js-select-address-candidate', zoomToSelectedAddressCandidate);
+                $body.on('click', '.js-zoom-to-selected-area', zoomToSelectedArea);
+                $toggleNAIPLayerBtn.on('click', $toggleNAIPLayerBtnOnClickHandler);
+                
                 // $body.on('click', '.js-delete-training-location', deleteTrainingLocationOnClickHandler);
                 // $body.on('click', '.js-open-training-location', openTrainingLocationOnClickHandler);
+
+                $searchInput.on('keyup', searchInputOnKeyupHandler);
+                $toggleMoreControlOptionsBtn.on('click', toggleMoreControlOptionsBtnOnClickHandler);
+                $body.on('click', bodyOnClickHandler);
                 
                 function trainingImageGridCellOnClickHandler(evt){
                     let targetGridCell = $(this);
@@ -1087,7 +1190,7 @@ $(document).ready(function(){
                     self.toggleTrainingImageContainer(false);
 
                     landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[outputType]);
-                    landcoverApp.populateOutputTiffImageFromAiServer();
+                    landcoverApp.populateOutputTiffImageFromAiServer(landcoverApp.currentProcessUID);
                 }
 
                 function submitTrainingDataBtnOnClickHandler(evt){
@@ -1097,7 +1200,88 @@ $(document).ready(function(){
                 function toggleTrainingResults(evt){
                     $body.toggleClass('training-results-panel-visible');
                 }
+
+                function searchInputOnKeyupHandler(evt){
+                    let currentText = $(this).val();
+                    let textLength = currentText.length;
+
+                    if(evt.keyCode == 13){
+                        searchInputOnEnterHandler();
+                    } else {
+                        if(textLength > 3){
+                            landcoverApp.getAddressCandidate(currentText).then(res=>{
+                                if(res.candidates){
+                                    self.populateAddressCandidates(res.candidates);
+                                }
+                            });
+                        } else {
+                            self.populateAddressCandidates([]);
+                        }
+                    }
+                    evt.preventDefault();
+                }
+
+                function searchInputOnEnterHandler(){
+                    let numOfCandidates = $addressCandidatesList.children().length;
+                    if(numOfCandidates){
+                        $addressCandidatesList.find('div').first().trigger('click');
+                    }
+                }
+
+                function zoomToSelectedAddressCandidate(evt){
+                    let targetCandidate = $(this);
+                    let targetLocName = targetCandidate.text();
+                    let targetLat = +targetCandidate.attr('data-lat');
+                    let targetLon = +targetCandidate.attr('data-lon');
+                    landcoverApp.flyToLocationByXY(targetLon, targetLat, targetLocName);
+                    self.closeAddressCandidatesList();
+                    self.setSearchLocationInputText(targetLocName);
+                }
+
+                function zoomToSelectedArea(evt){
+                    landcoverApp.zoomToSelectedArea();
+                }
+
+                function $toggleNAIPLayerBtnOnClickHandler(evt){
+                    let targetBtn = $(this);
+                    targetBtn.toggleClass('is-naip-layer-visible');
+                    let isVisible = targetBtn.hasClass('is-naip-layer-visible');
+                    let isNAIPDisabledByUser = isVisible ? false : true;
+                    landcoverApp.toggleNAIPLayer(isVisible);
+                    landcoverApp.setIsNAIPLayerDisabledByUser(isNAIPDisabledByUser);
+                }
+
+                function toggleMoreControlOptionsBtnOnClickHandler(evt){
+                    $moreCtrlOptions.toggleClass('hide');
+                }
+
+                function bodyOnClickHandler(evt){
+                    let isMoreCtrlOptionsHide = $moreCtrlOptions.hasClass('hide');
+                    if (!isMoreCtrlOptionsHide && !$toggleMoreControlOptionsBtn.is(evt.target) && $toggleMoreControlOptionsBtn.has(evt.target).length === 0 && !$moreCtrlOptions.is(evt.target) && $moreCtrlOptions.has(evt.target).length === 0) {
+                        $moreCtrlOptions.addClass('hide');
+                    } 
+                }
             };
+
+            this.populateAddressCandidates = function(candidates=[]){
+                candidates = candidates.length > 5 ? candidates.slice(0, 5) : candidates;
+                let candidatesHtmlStr = candidates.map(d=>{
+                    let address = d.address;
+                    let lat = d.location.y;
+                    let lon = d.location.x;
+                    return `<div class='js-select-address-candidate' data-lon='${lon}' data-lat='${lat}'>${address}</div>`;
+                });
+                // console.log(candidatesHtmlStr);
+                $addressCandidatesList.html(candidatesHtmlStr);
+            };
+
+            this.closeAddressCandidatesList = function(){
+                $addressCandidatesList.html('');
+            };
+
+            this.setSearchLocationInputText = function(value){
+                $searchInput.val(value);
+            }
 
             this.populateCountOfResults = function(num){
                 $sideNavBtn.attr('data-num', num)
@@ -1363,6 +1547,18 @@ $(document).ready(function(){
                 setTimeout(function(){
                     $gerenalInfoAlert.addClass('hide');
                 }, ALERT_DISPALY_TIME);
+            };
+
+            this.toggleReturnToSelectedAreaBtn = function(isVisible){
+                if(isVisible){
+                    $returnToSelectedAreaBtn.removeClass('hide');
+                } else {
+                    $returnToSelectedAreaBtn.addClass('hide');
+                }
+            };
+
+            this.closeTileSelectionWindow = function(){
+                $tileSelectionCloseBtn.trigger('click');
             };
 
         }

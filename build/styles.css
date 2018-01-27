@@ -102,6 +102,9 @@
     background-color: rgba(0,0,0,0.75);
     color: #a9a9a9;
     z-index: 1000;
+    max-height: 90%;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .training-results-panel-visible #training-menu-container{
@@ -132,6 +135,16 @@
     left: 0;
     width: 350px;
     line-height: 10px;
+}
+
+#return-to-selected-area-btn-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 2000;
 }
 
 #training-image-square-div {
@@ -228,13 +241,110 @@
     display:flex;
     justify-content:center;
     align-items:center;
+    position: relative;
 }
 
-input.customized-slider{
-    writing-mode: bt-lr; /* IE */
+/* input.customized-slider{
+    writing-mode: bt-lr;
     -webkit-appearance: slider-vertical;
     width: 5px;
     height: 100%;
+} */
+
+input.customized-slider {
+    position: absolute;
+    transform: rotate(270deg);
+    height: 10px;
+    border: 0px solid rgba(0,0,0,0);
+
+    -webkit-appearance: none; /* Hides the slider so that custom slider can be made */
+    background: transparent; /* Otherwise white in Chrome */
+    width: 100%; /* Specific width is required for Firefox. */
+}
+
+input.customized-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+}
+
+input.customized-slider:focus {
+    outline: none; /* Removes the blue border. You should probably do some kind of focus styling for accessibility reasons though. */
+}
+
+input.customized-slider::-ms-track {
+    width: 100%;
+    cursor: pointer;
+
+    /* Hides the slider so custom styles can be added */
+    background: transparent; 
+    border-color: transparent;
+    color: transparent;
+}
+
+/* Special styling for WebKit/Blink */
+input.customized-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    /* border: 1px solid #000000; */
+    height: 14px;
+    width: 5px;
+    background: #efefef;
+    cursor: pointer;
+    margin-top: -6px;
+}
+
+/* All the same stuff for IE */
+input.customized-slider::-ms-thumb {
+    height: 14px;
+    width: 5px;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+input.customized-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 2px;
+    cursor: pointer;
+    background: #6e6e6e;
+}
+
+input.customized-slider:focus::-webkit-slider-runnable-track {
+    background: #6e6e6e;
+}
+
+input.customized-slider::-ms-track {
+    width: 100%;
+    height: 2px;
+    cursor: pointer;
+    background: transparent;
+    border-color: transparent;
+    color: transparent;
+}
+input.customized-slider::-ms-fill-lower {
+    background: #6e6e6e;
+}
+input.customized-slider:focus::-ms-fill-lower {
+    background: #6e6e6e;
+}
+input.customized-slider::-ms-fill-upper {
+    background: #6e6e6e;
+}
+input.customized-slider:focus::-ms-fill-upper {
+    background: #6e6e6e;
+}
+
+/* use the default style when it comes to firefox */
+@-moz-document url-prefix() { 
+
+    .adjustment-slider {
+        position: unset;
+    }
+
+    input.customized-slider{
+        position: unset;
+        -webkit-appearance: slider-vertical;
+        width: 5px;
+        height: 100%;
+        transform: unset;
+    }
 }
 
 .slider-label-div {
@@ -262,11 +372,13 @@ input.customized-slider{
     flex-grow: 1;
     flex-shrink: 0;
     flex-basis: 200px;
+    position: relative;
 }
 
 .location-search-input-wrap > input {
     background-color: #595959;
     border: 1px solid #6e6e6e;
+    color: #ccc;
 }
 
 ::-webkit-input-placeholder { /* Chrome/Opera/Safari */
@@ -280,6 +392,27 @@ input.customized-slider{
 }
 :-moz-placeholder { /* Firefox 18- */
     color: #959595;
+}
+
+.address-candidates-list {
+    position: absolute;
+    width: 100%;
+    top: 41px;
+    z-index: 1000;
+}
+
+.address-candidates-list > div {
+    padding: .3rem .5rem;
+    border-bottom: 1px solid rgba(120,120,120,0.2);
+    background-color: rgba(80,80,80,0.9);
+    color: #ccc;
+    font-size: .825rem;
+    cursor: pointer;
+}
+
+.address-candidates-list > div:hover {
+    background-color: rgba(0,0,0,0.9);
+    color: #fff;
 }
 
 .control-btn {
