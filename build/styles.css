@@ -118,6 +118,7 @@
     justify-content: center;
     align-content: stretch;
     align-items: stretch;
+    position: relative;
 }
 
 #training-image-container {
@@ -254,6 +255,9 @@
 input.customized-slider {
     position: absolute;
     transform: rotate(270deg);
+}
+
+input[type=range] {
     height: 10px;
     border: 0px solid rgba(0,0,0,0);
 
@@ -262,15 +266,15 @@ input.customized-slider {
     width: 100%; /* Specific width is required for Firefox. */
 }
 
-input.customized-slider::-webkit-slider-thumb {
+input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
 }
 
-input.customized-slider:focus {
+input[type=range]:focus {
     outline: none; /* Removes the blue border. You should probably do some kind of focus styling for accessibility reasons though. */
 }
 
-input.customized-slider::-ms-track {
+input[type=range]r::-ms-track {
     width: 100%;
     cursor: pointer;
 
@@ -281,7 +285,7 @@ input.customized-slider::-ms-track {
 }
 
 /* Special styling for WebKit/Blink */
-input.customized-slider::-webkit-slider-thumb {
+input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
     /* border: 1px solid #000000; */
     height: 14px;
@@ -292,25 +296,25 @@ input.customized-slider::-webkit-slider-thumb {
 }
 
 /* All the same stuff for IE */
-input.customized-slider::-ms-thumb {
+input[type=range]::-ms-thumb {
     height: 14px;
     width: 5px;
     background: #ffffff;
     cursor: pointer;
 }
 
-input.customized-slider::-webkit-slider-runnable-track {
+input[type=range]::-webkit-slider-runnable-track {
     width: 100%;
     height: 2px;
     cursor: pointer;
     background: #6e6e6e;
 }
 
-input.customized-slider:focus::-webkit-slider-runnable-track {
+input[type=range]:focus::-webkit-slider-runnable-track {
     background: #6e6e6e;
 }
 
-input.customized-slider::-ms-track {
+input[type=range]::-ms-track {
     width: 100%;
     height: 2px;
     cursor: pointer;
@@ -318,16 +322,16 @@ input.customized-slider::-ms-track {
     border-color: transparent;
     color: transparent;
 }
-input.customized-slider::-ms-fill-lower {
+input[type=range]::-ms-fill-lower {
     background: #6e6e6e;
 }
-input.customized-slider:focus::-ms-fill-lower {
+input[type=range]:focus::-ms-fill-lower {
     background: #6e6e6e;
 }
-input.customized-slider::-ms-fill-upper {
+input[type=range]::-ms-fill-upper {
     background: #6e6e6e;
 }
-input.customized-slider:focus::-ms-fill-upper {
+input[type=range]:focus::-ms-fill-upper {
     background: #6e6e6e;
 }
 
@@ -415,6 +419,35 @@ input.customized-slider:focus::-ms-fill-upper {
     color: #fff;
 }
 
+#more-control-options-wrap {
+    position: absolute;
+    width: 70%;
+    top: 45px;
+    right: 0;
+    z-index: 2000;
+}
+
+#more-control-options-wrap > div {
+    padding: .3rem .5rem;
+    font-size: .825rem;
+    border-bottom: 1px solid rgba(120,120,120,0.2);
+    background-color: #595959;
+    color: #a9a9a9;
+    cursor: pointer;
+}
+
+#more-control-options-wrap > div:hover {
+    color: #fff;
+}
+
+.is-naip-visible-icon {
+    opacity: 0;
+}
+
+.is-naip-layer-visible .is-naip-visible-icon {
+    opacity: 1;
+}
+
 .control-btn {
     line-height: 38.25px;
     width: 40px;
@@ -422,6 +455,10 @@ input.customized-slider:focus::-ms-fill-upper {
     color: #a9a9a9;
     background-color: #595959;
     border: solid 1px #6e6e6e;
+}
+
+.control-btn:hover {
+    color: #fff;
 }
 
 .control-btn.is-active {
@@ -562,6 +599,8 @@ a.is-active {
         position: absolute;
         top: 10px;
         right: 30px;
+        z-index: 5000;
+        cursor: pointer;
     }
 
     #training-results-panel hr {
