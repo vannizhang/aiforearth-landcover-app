@@ -8,8 +8,8 @@ import './style/main.css';
 import { setTimeout } from 'timers';
 
 // import other files
-import cities from './us-cities-coordinates.json';
-// import testTiff from './assets/test.tif';
+import cities from './assets/cities.json';
+
 
 $(document).ready(function(){
     
@@ -632,8 +632,8 @@ $(document).ready(function(){
 
             this._getRandomCity = function(){
                 let randomItemIndex = Math.floor(Math.random() * cities.length);
-                let randomCityCoord = cities[randomItemIndex].fields.coordinates;
-                let randomCityLabel = cities[randomItemIndex].fields.city + ', ' + cities[randomItemIndex].fields.state;
+                let randomCityCoord = [cities[randomItemIndex].lat, cities[randomItemIndex].lon];
+                let randomCityLabel = cities[randomItemIndex].city + ', ' + cities[randomItemIndex].state;
                 return {
                     'label': randomCityLabel,
                     'coordinates': randomCityCoord
