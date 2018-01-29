@@ -354,6 +354,7 @@ input[type=range]:focus::-ms-fill-upper {
 .slider-label-div {
     width: 100%;
     text-align: center;
+    margin-top: .25rem;
 }
 
 /* .slider-label-div.water {
@@ -513,6 +514,31 @@ a.is-active {
     font-weight: 400;
     padding: 0 .5rem 0 .25rem;
     display: inline-block;
+}
+
+.slider-icon {
+    width: 100%;
+    height: 20px;
+}
+
+.water .slider-icon {
+    background: url(../assets/Water.png) center center no-repeat;
+    background-size: contain;
+}
+
+.forest .slider-icon {
+    background: url(../assets/Forest.png) center center no-repeat;
+    background-size: contain;
+}
+
+.field .slider-icon {
+    background: url(../assets/Field.png) center center no-repeat;
+    background-size: contain;
+}
+
+.build .slider-icon {
+    background: url(../assets/Built.png) center center no-repeat;
+    background-size: contain;
 }
 
 /*  END of Styles for Floating Traning Panel */

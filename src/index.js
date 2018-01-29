@@ -189,6 +189,33 @@ $(document).ready(function(){
                 this.landcoverImageOutputType = outputType;
             };
 
+            this._setMapEventHandlers = function(map){
+                map.on('click', evt=>{
+                    this._mapOnClickHandler(evt);
+                });
+                map.on('mouse-move', evt=>{
+                    this._mapOnMousemoveHandler(evt);
+                });
+                map.on('pan-start', (point, extent)=>{
+                    this._mapOnMoveStartHandler();
+                });
+                map.on('pan-end', (point, extent)=>{
+                    this._mapOnMoveEndHandler();
+                });
+                map.on('zoom-start', (point, extent)=>{
+                    this._mapOnMoveStartHandler();
+                });
+                map.on('zoom-end', (point, extent)=>{
+                    this._mapOnMoveEndHandler();
+                });
+                map.on('update-end', ()=>{
+                    this._mapOnUpdateEndHandler();
+                });
+                map.on('mouse-out', ()=>{
+                    this._mapOnMouseoutHandler();
+                });
+            };
+
             // the main function to start selecting/processing an area
             this.selectAreaByPoint = function(point, uniqueID=null){
                 // use the value from uniqueID parameter to determine if this function is triggered by map click event or seelction made from training results panel,
@@ -281,8 +308,6 @@ $(document).ready(function(){
                     'href': imageURL
                 });
                 let mapImageLayer = this.map.getLayer(LANDCOVER_MAP_IMAGE_LAYER_ID);
-                // let opacityVal = userInterfaceUtils.getOpacitySliderValue();
-                // this.setOpcityForLandcoverMapImageLayer(opacityVal);
                 mapImageLayer.removeAllImages();
                 mapImageLayer.addImage(mapImage);
             };
@@ -304,30 +329,6 @@ $(document).ready(function(){
                 mapImageLayer.removeAllImages();
             };
 
-            this._setMapEventHandlers = function(map){
-                map.on('click', evt=>{
-                    this._mapOnClickHandler(evt);
-                });
-                map.on('mouse-move', evt=>{
-                    this._mapOnMousemoveHandler(evt);
-                });
-                map.on('pan-start', (point, extent)=>{
-                    this._mapOnMoveStartHandler();
-                });
-                map.on('pan-end', (point, extent)=>{
-                    this._mapOnMoveEndHandler();
-                });
-                map.on('zoom-start', (point, extent)=>{
-                    this._mapOnMoveStartHandler();
-                });
-                map.on('zoom-end', (point, extent)=>{
-                    this._mapOnMoveEndHandler();
-                });
-                map.on('update-end', ()=>{
-                    this._mapOnUpdateEndHandler();
-                });
-            };
-
             this._mapOnClickHandler = function(evt){    
                 // console.log(evt.mapPoint);
                 // // original approach that won't allow select new area when tile selection window is open
@@ -343,7 +344,7 @@ $(document).ready(function(){
 
             // show area select reference layer on mousemove
             this._mapOnMousemoveHandler = function(evt){
-                // console.log(evt);
+
                 if(!this.lockForSelectedArea){
                     let sqAreaReferenceGraphic = this._getSquareAreaGraphic(evt.mapPoint, evt.type);
                     this.map.graphics.clear();
@@ -379,7 +380,11 @@ $(document).ready(function(){
                 if(!this.isNAIPLayerDisabledByUser){
                     this.toggleNAIPLayer(true);
                 }
-            }
+            };
+
+            this._mapOnMouseoutHandler = function(evt){
+                // console.log('mouseout');
+            };
 
             this.resetSeletcedArea = function(keepCurrentSliderValues=false){
                 // Do not call toggleLockForSelectedArea in this function
