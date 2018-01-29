@@ -402,6 +402,7 @@ $(document).ready(function(){
                 userInterfaceUtils.resetTrainingImageGridCells();
                 userInterfaceUtils.toggleReturnToSelectedAreaBtn(false);
                 userInterfaceUtils.toggleLoadingIndicator(false);
+                userInterfaceUtils.toggleUserInterfaceComponentsStatus(false);
 
                 if(!keepCurrentSliderValues){
                     userInterfaceUtils.resetLandcoverSliderValues();
@@ -504,6 +505,7 @@ $(document).ready(function(){
                             userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
                             userInterfaceUtils.populateTrainingImage(imageData);
                             userInterfaceUtils.toggleLoadingIndicator(false);
+                            userInterfaceUtils.toggleUserInterfaceComponentsStatus(true);
                         }
                         // console.log('populating canvas for tiff image to training image container', canvasForTiffImg);
                     };
@@ -1100,6 +1102,7 @@ $(document).ready(function(){
             const $flyToRandomLocationBtn = $('.js-fly-to-random-location');
             const $selectOutputTypeBtn = $('.js-select-output-type-btn');
             const $submitTrainingDataBtn = $('.js-submit-training-data');
+            const $submitBtnBtn = $('.submit-training-data-btn'); // use this to manage the style of submit btn
             const $toggleTrainingResultsBtn = $('.js-toggle-training-results');
             const $trainingResultsBlockGroup = $('.training-locations-block-groups');
             const $sideNavBtn = $('.nav-btn-div');
@@ -1109,6 +1112,7 @@ $(document).ready(function(){
             const $toggleNAIPLayerBtn = $('.js-toggle-naip-layer');
             const $toggleMoreControlOptionsBtn = $('.js-toggle-more-control-options');
             const $moreCtrlOptions = $('#more-control-options-wrap');
+            const $ctrlItemsWrap = $('.control-items-wrap');
 
             this.canvasForTiffImgSideLength = 0;
 
@@ -1187,18 +1191,21 @@ $(document).ready(function(){
 
                 function selectOutputTypeBtnOnClickHandler(evt){
                     let targetBtn = $(this);
+                    let isTargetBtnDisabled = targetBtn.closest('.control-items-wrap').hasClass('disabled');
                     let outputType = targetBtn.attr('data-output-type');
-                    $selectOutputTypeBtn.removeClass('is-active');
-                    $('.js-select-output-type-btn[data-output-type="' + outputType + '"]').addClass('is-active'); // select by output type because we have two sets of js-select-output-type-btn
 
-                    landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[outputType]);
-
-                    if(landcoverApp.currentProcessUID){
-                        self.toggleLoadingIndicator(true);
-                        self.toggleTrainingImageContainer(false);
-                        landcoverApp.populateOutputTiffImageFromAiServer(landcoverApp.currentProcessUID);
+                    if(!isTargetBtnDisabled){
+                        $selectOutputTypeBtn.removeClass('is-active');
+                        $('.js-select-output-type-btn[data-output-type="' + outputType + '"]').addClass('is-active'); // select by output type because we have two sets of js-select-output-type-btn
+    
+                        landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[outputType]);
+    
+                        if(landcoverApp.currentProcessUID){
+                            self.toggleLoadingIndicator(true);
+                            self.toggleTrainingImageContainer(false);
+                            landcoverApp.populateOutputTiffImageFromAiServer(landcoverApp.currentProcessUID);
+                        }
                     }
-
                 }
 
                 function submitTrainingDataBtnOnClickHandler(evt){
@@ -1569,6 +1576,36 @@ $(document).ready(function(){
 
             this.closeTileSelectionWindow = function(){
                 $tileSelectionCloseBtn.trigger('click');
+            };
+
+            this.toggleSumbitTrainingResultBtn = function(isActive){
+                if(isActive){
+                    $submitBtnBtn.removeClass('btn-disabled');
+                } else {
+                    $submitBtnBtn.addClass('btn-disabled');
+                }
+            };
+
+            this.toggleAdjustmentSliderStatus = function(isActive){
+                if(isActive){
+                    $sliders.attr('disabled', false);
+                } else {
+                    $sliders.attr('disabled', true);
+                }
+            };
+
+            this.toggleControlsWrapStatus = function(isActive){
+                if(isActive){
+                    $ctrlItemsWrap.removeClass('disabled');
+                } else {
+                    $ctrlItemsWrap.addClass('disabled');
+                }
+            };
+
+            this.toggleUserInterfaceComponentsStatus = function(isActive){
+                this.toggleSumbitTrainingResultBtn(isActive);
+                this.toggleAdjustmentSliderStatus(isActive);
+                this.toggleControlsWrapStatus(isActive);
             };
 
         }

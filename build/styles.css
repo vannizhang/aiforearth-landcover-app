@@ -541,6 +541,18 @@ a.is-active {
     background-size: contain;
 }
 
+#adjustment-controls-wrap.disabled, 
+.training-image-control-items.disabled,
+.training-image-control-items.disabled a {
+    color: #656565;
+    pointer-events: none;
+}
+
+#adjustment-controls-wrap.disabled .slider-icon,
+.training-image-control-items.disabled .icon-span {
+    opacity: .5;
+}
+
 /*  END of Styles for Floating Traning Panel */
 
 /* side nav bar style*/
