@@ -1191,11 +1191,14 @@ $(document).ready(function(){
                     $selectOutputTypeBtn.removeClass('is-active');
                     $('.js-select-output-type-btn[data-output-type="' + outputType + '"]').addClass('is-active'); // select by output type because we have two sets of js-select-output-type-btn
 
-                    self.toggleLoadingIndicator(true);
-                    self.toggleTrainingImageContainer(false);
-
                     landcoverApp.setLandcoverImageOutputType(LANDCOVER_IMAGE_OUTPUT_TYPE_LOOKUP[outputType]);
-                    landcoverApp.populateOutputTiffImageFromAiServer(landcoverApp.currentProcessUID);
+
+                    if(landcoverApp.currentProcessUID){
+                        self.toggleLoadingIndicator(true);
+                        self.toggleTrainingImageContainer(false);
+                        landcoverApp.populateOutputTiffImageFromAiServer(landcoverApp.currentProcessUID);
+                    }
+
                 }
 
                 function submitTrainingDataBtnOnClickHandler(evt){
