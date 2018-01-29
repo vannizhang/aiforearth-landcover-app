@@ -1074,7 +1074,7 @@ $(document).ready(function(){
 
         function UserInterfaceUtils(){
 
-            const NUM_OF_GRID_CELLS = 16;
+            const NUM_OF_GRID_CELLS = 9;
             const ALERT_DISPALY_TIME = 5000; // in ms
             
             // cache DOM nodes
