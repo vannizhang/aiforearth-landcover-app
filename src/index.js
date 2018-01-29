@@ -1445,7 +1445,9 @@ $(document).ready(function(){
                 if(isActiveGridCell){
                     $('.grid-cell.active').trigger('click');
                 } else {
-                    $('.grid-cell:eq(0)').trigger('click'); // add the first tile from the training image to the map
+                    // add the default tile from the training image to the map
+                    // the server returns a 3×3 grid with the default in the centre, which has the index of 4
+                    $('.grid-cell:eq(4)').trigger('click'); 
                 }
             }
 
