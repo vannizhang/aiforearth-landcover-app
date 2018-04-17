@@ -8,6 +8,11 @@ This [web mapping application](https://vannizhang.github.io/aiforearth-landcover
 
 ## How it works
 ---
+- Click anywhere on the map to load 9 training tile candidates, click the training tile candidates to show it in the area selection panel on map, adjust the opcity to see how it compares to the natural color high resolution aerial imagery.
+- The user may push land cover type sliders up and down to get adjusted results.
+- Click "Teach the machine" button to submit the selected training tile candidate that will be used to train the model.
+- Click the menu button at top right to open a collection of submitted training tiles. A training tile can be selected to open the application to that current state for editing.
+
 
 ## Prerequisites
 ---
