@@ -46,6 +46,12 @@ To build/deploye the app, you can simply run:
 npm run build
 ```
 
+## External Libraries:
+- [ArcGIS API for JavaScript (3.2)](https://developers.arcgis.com/javascript/3/)
+- [tiff.js](https://github.com/seikichi/tiff.js) 
+- [jQuery](https://github.com/jquery/jquery)
+
+
 ## Resources
 - [AI for Earth](https://www.microsoft.com/en-us/aiforearth)
 - [Pixel-level land classification tutorial](https://github.com/Azure/pixel_level_land_classification)
