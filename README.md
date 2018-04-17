@@ -7,7 +7,7 @@ This [web mapping application](https://vannizhang.github.io/aiforearth-landcover
 ![App](screenshot.png)
 
 ## How it works
----
+
 - Click anywhere on the map to load 9 training tile candidates, click the training tile candidates to show it in the area selection panel on map, adjust the opcity to see how it compares to the natural color high resolution aerial imagery.
 - The user may push land cover type sliders up and down to get adjusted results.
 - Click "Teach the machine" button to submit the selected training tile candidate that will be used to train the model.
@@ -15,12 +15,9 @@ This [web mapping application](https://vannizhang.github.io/aiforearth-landcover
 
 
 ## Prerequisites
----
 Before we begin, make sure you have a fresh version of [Node.js](https://nodejs.org/en/) installed. The current Long Term Support (LTS) release is an ideal starting point. 
 
 ## Installing 
----
-
 To begin, clone this repository to your computer:
 
 ```sh
@@ -34,7 +31,6 @@ npm install
 ```
 
 ## Running the app 
----
 Now you can start the webpack dev server to test the app on your local machine:
 
 ```sh
@@ -43,7 +39,6 @@ npm run server
 ```
 
 ## Deployment
----
 To build/deploye the app, you can simply run:
 
 ```sh
@@ -59,17 +54,14 @@ npm run build
 
 
 ## Issues
----
 
 Find a bug or want to request a new feature?  Please let us know by submitting an issue.
 
 ## Contributing
----
 
 Esri welcomes contributions from anyone and everyone. Please see our [guidelines for contributing](https://github.com/esri/contributing).
 
 ## Licensing
----
 Copyright 2016 Esri
 
 Licensed under the Apache License, Version 2.0 (the "License");
