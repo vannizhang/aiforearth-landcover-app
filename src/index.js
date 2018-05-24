@@ -463,7 +463,7 @@ $(document).ready(function(){
             this._requestAIServerOnSuccessHandler = function(response){
                 // console.log(response);
                 this._setAiServerResponse(response);
-                this.populateOutputTiffImageFromAiServer(response.processUID);
+                this.populateOutputImageFromAiServer(response.processUID);
             };
 
             this._requestAIServerOnErrorHandler = function(error){
@@ -474,35 +474,36 @@ $(document).ready(function(){
                 userInterfaceUtils.toggleLoadingIndicator(false);
             };
 
-            this._preloadUnselectedOutputTiffImg = function(){
+            this._preloadUnselectedOutputImg = function(){
                 let unselectedOutputTpe = this.landcoverImageOutputType === 'output_hard' ? 'output_soft' : 'output_hard';
                 let imageSrcPath = this.aiServerResponse[unselectedOutputTpe];
-                let keyForCachedOutputTiffImg = unselectedOutputTpe + '_canvas';
-                let cachedOutputTiffImg = this.aiServerResponse[keyForCachedOutputTiffImg];
-                let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
-                    this.aiServerResponse[keyForCachedOutputTiffImg] = canvasForTiffImg;
+                let keyForCachedOutputImg = unselectedOutputTpe + '_canvas';
+                let cachedOutputImg = this.aiServerResponse[keyForCachedOutputImg];
+                let canvasOnloadHandler = (canvas)=>{
+                    this.aiServerResponse[keyForCachedOutputImg] = canvas;
                 }
-                if(!cachedOutputTiffImg){
-                    this._getCanvasForTiff(imageSrcPath, canvasForTiffImgOnloadHandler);
+                if(!cachedOutputImg){
+                    // this._getCanvasForTiff(imageSrcPath, canvasForTiffImgOnloadHandler);
+                    this._getCanvasForJPG(imageSrcPath, canvasOnloadHandler);
                 }
             };
 
-            this.populateOutputTiffImageFromAiServer = function(processUID){
+            this.populateOutputImageFromAiServer = function(processUID){
                 if(this.aiServerResponse && this.lockForSelectedArea && processUID === this.currentProcessUID){
                     // console.log('start processing response from AI server', this.aiServerResponse);
                     let outputType = this.landcoverImageOutputType;
-                    let keyForCachedOutputTiffImg = outputType + '_canvas';
-                    let cachedOutputTiffImg = this.aiServerResponse[keyForCachedOutputTiffImg];
+                    let keyForCachedOutputImg = outputType + '_canvas';
+                    let cachedOutputImg = this.aiServerResponse[keyForCachedOutputImg];
                     let imageSrcPath = this.aiServerResponse[outputType];
 
-                    let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
-                        if(!cachedOutputTiffImg){
-                            this.aiServerResponse[keyForCachedOutputTiffImg] = canvasForTiffImg;
+                    let canvasOnloadHandler = (canvas)=>{
+                        if(!cachedOutputImg){
+                            this.aiServerResponse[keyForCachedOutputImg] = canvas;
                         }
 
                         if(this.lockForSelectedArea){
-                            let imageData = canvasForTiffImg.toDataURL();
-                            userInterfaceUtils.getCanvasForTiffImgSideLength(canvasForTiffImg);
+                            let imageData = canvas.toDataURL();
+                            userInterfaceUtils.getCanvasSideLength(canvas);
                             userInterfaceUtils.populateTrainingImage(imageData);
                             userInterfaceUtils.toggleLoadingIndicator(false);
                             userInterfaceUtils.toggleUserInterfaceComponentsStatus(true);
@@ -510,13 +511,30 @@ $(document).ready(function(){
                         // console.log('populating canvas for tiff image to training image container', canvasForTiffImg);
                     };
 
-                    if(!cachedOutputTiffImg){
-                        this._getCanvasForTiff(imageSrcPath, canvasForTiffImgOnloadHandler);
-                        this._preloadUnselectedOutputTiffImg();
+                    if(!cachedOutputImg){
+                        // this._getCanvasForTiff(imageSrcPath, canvasForTiffImgOnloadHandler);
+                        this._getCanvasForJPG(imageSrcPath, canvasOnloadHandler);
+                        this._preloadUnselectedOutputImg();
                     } else {
-                        canvasForTiffImgOnloadHandler(cachedOutputTiffImg);
+                        canvasOnloadHandler(cachedOutputImg);
                     }
                 } 
+            };
+
+            this._getCanvasForJPG = function(imageSrcPath, callback){
+                const img = new Image();
+                img.setAttribute('crossOrigin', 'anonymous');
+            
+                img.onload = function () {
+                    const canvas = document.createElement("canvas");
+                    canvas.width =this.width;
+                    canvas.height =this.height;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(this, 0, 0);
+                    callback(canvas);
+                };
+            
+                img.src = imageSrcPath;
             };
 
             this._getCanvasForTiff = function(imageSrcPath, callback){
@@ -916,8 +934,8 @@ $(document).ready(function(){
 
             this._uploadSelectedNAIPImage = function(featureFID, callback){
                 let imageHref = this.exportedNAIPImageHerf;
-                let canvasForTiffImgOnloadHandler = (canvasForTiffImg)=>{
-                    let imageData = canvasForTiffImg.toDataURL();
+                let canvasForTiffImgOnloadHandler = (canvas)=>{
+                    let imageData = canvas.toDataURL();
                     let formData = this._getAttachmentFormDataFromImageHref(imageData, ATTACHMENT_NAME_NAIP_IMG);
                     this._uploadAttachment(featureFID, formData).then(res=>{
                         // console.log(res);
@@ -1114,7 +1132,7 @@ $(document).ready(function(){
             const $moreCtrlOptions = $('#more-control-options-wrap');
             const $ctrlItemsWrap = $('.control-items-wrap');
 
-            this.canvasForTiffImgSideLength = 0;
+            this.canvasForOutputImgSideLength = 0;
 
             this.startup = function(){
                 this._populateTrainingImageGridCells(NUM_OF_GRID_CELLS);
@@ -1127,7 +1145,7 @@ $(document).ready(function(){
                 $body.on('click', '.grid-cell', trainingImageGridCellOnClickHandler);
                 $sliders.on('change', sliderOnChangeHandler);
                 $tileSelectionCloseBtn.on('click', tileSelectionCloseBtnOnClickHandler);
-                $opacitySlider.on('change', opacitySliderOnChangeHandler);
+                $opacitySlider.on('input', opacitySliderOnInputHandler);
                 $swicthServiceBtn.on('click', swicthServiceBtnOnClickHandler);
                 $flyToRandomLocationBtn.on('click', flyToRandomLocationBtnOnClickHandler);
                 $selectOutputTypeBtn.on('click', selectOutputTypeBtnOnClickHandler);
@@ -1169,7 +1187,7 @@ $(document).ready(function(){
                     landcoverApp.toggleLockForSelectedArea(false); // unlock the selected area so user can select new area
                 }
 
-                function opacitySliderOnChangeHandler(evt){
+                function opacitySliderOnInputHandler(evt){
                     // let targetSlider = $(this);
                     // let currentValue = +targetSlider.val();
                     let opacityValue = self.getOpacitySliderValue();
@@ -1203,7 +1221,7 @@ $(document).ready(function(){
                         if(landcoverApp.currentProcessUID){
                             self.toggleLoadingIndicator(true);
                             self.toggleTrainingImageContainer(false);
-                            landcoverApp.populateOutputTiffImageFromAiServer(landcoverApp.currentProcessUID);
+                            landcoverApp.populateOutputImageFromAiServer(landcoverApp.currentProcessUID);
                         }
                     }
                 }
@@ -1402,7 +1420,7 @@ $(document).ready(function(){
 
             this.getOpacitySliderValue = function(){
                 let value = $opacitySlider.val();
-                value = (10 - value) / 10;
+                value = (100 - value) / 100;
                 return +value;
             };
 
@@ -1466,8 +1484,8 @@ $(document).ready(function(){
                 }
             }
 
-            this.getCanvasForTiffImgSideLength = function(canvas){
-                this.canvasForTiffImgSideLength = $(canvas).attr('width');
+            this.getCanvasSideLength = function(canvas){
+                this.canvasForOutputImgSideLength = $(canvas).attr('width');
             };
 
             this._getGridCellPosition = function(cellIndex){
@@ -1485,7 +1503,7 @@ $(document).ready(function(){
                 let gridCellPosition = this._getGridCellPosition(cellIndex);
                 let gridColIndex = gridCellPosition[0];
                 let gridRowIndex = gridCellPosition[1];
-                let tileSidelength = this.canvasForTiffImgSideLength / Math.sqrt(NUM_OF_GRID_CELLS);
+                let tileSidelength = this.canvasForOutputImgSideLength / Math.sqrt(NUM_OF_GRID_CELLS);
                 let trainingImageSrc = $trainingImage.attr('src');
                 
                 let canvas = document.createElement('canvas');
